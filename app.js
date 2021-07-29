@@ -73,12 +73,7 @@ function toggleGPIO(pin, interval) {
     var state = 1;
     return setInterval(function () {
         digitalWrite(pin, state);
-        if (state == 1) {
-            state = 0;
-        }
-        else {
-            state = 1;
-        }
+        state = !state;
     }, interval);
 }
 // END OF FUNCTIONS
