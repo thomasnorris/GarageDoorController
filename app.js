@@ -2,13 +2,14 @@
 // require('Storage').write('wifi_ssid', <<ssid>>)
 // require('Storage').write('wifi_pw', <<pw>>)
 
-// modules
+// MODULES
 const _modules = {
     wifi: require('Wifi'),
-    storage: require('Storage')
+    storage: require('Storage'),
+    sr04: require('HC-SR04')
 };
 
-// settings
+// SETTINGS
 var _settings = {
     host_name: 'Garage Door Controller',
     wifi: {
@@ -17,19 +18,38 @@ var _settings = {
         retry_ms: 3000,
         led_blink_interval_ms: 500
     },
+    sr04: {
+        trigger_interval_ms: 1000
+    },
     pins: {
         wifi_led: {
             mode: 'output',
-            pin: 16
+            pin: NodeMCU.D0
+        },
+        sr04: {
+            trig: {
+                mode: 'output',
+                pin: NodeMCU.D1
+            },
+            echo: {
+                mode: 'input',
+                pin: NodeMCU.D2
+            }
         }
     }
 };
 
 // START OF FUNCTIONS
 function initPins() {
-    // wifi LED pin (OUTPUT, LOW) low is ON
-    pinMode(_settings.pins.wifi_led.pin, _settings.pins.wifi_led.mode);
-    digitalWrite(_settings.pins.wifi_led.pin, 1);
+    var pins = _settings.pins;
+
+    // wifi LED
+    pinMode(pins.wifi_led.pin, pins.wifi_led.mode);
+    digitalWrite(pins.wifi_led.pin, 1);
+
+    // SR04 pins
+    pinMode(pins.sr04.trig.pin, pins.sr04.trig.mode);
+    pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
 }
 
 function initWifi(cb, led_interval) {
@@ -76,11 +96,29 @@ function toggleGPIO(pin, interval) {
         state = !state;
     }, interval);
 }
+
+function monitorSR04() {
+    // connect
+    var pins = _settings.pins.sr04;
+    var sr04 = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
+
+    // refresh
+    setInterval(function () {
+        sr04.trigger();
+    }, _settings.sr04.trigger_interval_ms);
+}
+
+function distanceReceived(dist) {
+    console.log(dist + ' cm');
+}
 // END OF FUNCTIONS
 
 // MAIN
 function main() {
-    console.log('Ready for next steps...');
+    console.log('Ready!');
+    console.log('Starting SR04 sensor monitoring');
+
+    monitorSR04();
 }
 
 // ENTRY POINT
