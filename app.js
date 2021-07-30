@@ -4,6 +4,8 @@
 // require('Storage').write('assistant_url', <<url>>)
 // require('Storage').write('assistant_endpoint', <<endpoint>>)
 // require('Storage').write('assistant_auth', <<auth>>)
+// require('Storage').write('blynk_url', <<url>>)
+// require('Storage').write('blynk_auth', <<auth>>)
 
 // MODULES
 var _modules = {
@@ -26,6 +28,10 @@ var _settings = {
         url: 'assistant_url',
         endpoint: 'assistant_endpoint',
         auth: 'assistant_auth'
+      },
+      blynk: {
+        url: 'blynk_url',
+        auth: 'blynk_auth'
       }
     },
     assistant: {
@@ -44,6 +50,11 @@ var _settings = {
     },
     sr04: {
         trigger_interval_ms: 500
+    },
+    blynk: {
+        url: undefined,       // storage
+        auth: undefined,      // storage
+        port: 8442
     },
     pins: {
         wifi_led: {
@@ -71,12 +82,14 @@ var _globals = {
     sr04: {
         connection: undefined,
         interval: 0
+    },
+    blynk: {
+      connection: undefined
     }
 };
 
 // START FUNCTIONS
 function initPins() {
-    console.log('Initializing pins...');
     var pins = _settings.pins;
 
     // wifi LED
@@ -86,11 +99,11 @@ function initPins() {
     // SR04 pins
     pinMode(pins.sr04.trig.pin, pins.sr04.trig.mode);
     pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
+
+    console.log('GPIO initialized.\n');
 }
 
 function initWifi() {
-    console.log('Initializing wifi...');
-
     _modules.wifi.setHostname(_settings.host_name);
     _modules.wifi.disconnect();
     _modules.wifi.stopAP();
@@ -104,19 +117,36 @@ function initWifi() {
 
     _settings.wifi.ssid = readStorage(_settings.storage.wifi.ssid);
     _settings.wifi.pw = readStorage(_settings.storage.wifi.pw);
+
+    console.log('Wifi initialized.\n');
 }
 
 function initAssistant() {
-    console.log('Initializing assistant...');
-
     _settings.assistant.url = readStorage(_settings.storage.assistant.url);
     _settings.assistant.endpoint = readStorage(_settings.storage.assistant.endpoint);
     _settings.assistant.auth = readStorage(_settings.storage.assistant.auth);
+
+    console.log('Assistant initialized.\n');
 }
 
 function initSR04() {
     var pins = _settings.pins.sr04;
     _globals.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
+
+    console.log('SR04 initialized.\n');
+}
+
+function initBlynk() {
+  _settings.blynk.url = readStorage(_settings.storage.blynk.url);
+  _settings.blynk.auth = readStorage(_settings.storage.blynk.auth);
+
+  _globals.blynk.connection = new _modules.blynk.Blynk(_settings.blynk.auth, {
+      addr: _settings.blynk.url,
+      port: _settings.blynk.port,
+      skip_connect: true
+  });
+
+  console.log('Blynk initialized.\n');
 }
 
 function connectWifi(cb) {
@@ -154,6 +184,14 @@ function connectWifi(cb) {
     });
 }
 
+function connectBlynk() {
+  _globals.blynk.connection.connect();
+}
+
+function disconnectBlynk() {
+  _globals.blynk.connection.disconnect();
+}
+
 function msToS(ms) {
     return ms / 1000;
 }
@@ -178,12 +216,14 @@ function toggleGPIO(pin, interval) {
 }
 
 function startMonitorSR04() {
+    console.log('Starting SR04 sensor monitoring.');
     _globals.sr04.interval = setInterval(function () {
         _globals.sr04.connection.trigger();
     }, _settings.sr04.trigger_interval_ms);
 }
 
 function stopMonitorSR04() {
+    console.log('Stopping SR04 sensor monitoring.');
     clearInterval(_globals.sr04.interval);
 }
 
@@ -227,13 +267,8 @@ function sendAssistantCommand(command, cb, cb_on_error) {
 
 // MAIN
 function main() {
-    console.log('Ready!');
-
-    /*
-    console.log('Starting SR04 sensor monitoring');
+    console.log('Ready!\n');
     startMonitorSR04();
-    */
-
 }
 
 // ENTRY POINT
@@ -241,6 +276,7 @@ initPins();
 initWifi();
 initSR04();
 initAssistant();
+initBlynk();
 
 connectWifi(main);
 
