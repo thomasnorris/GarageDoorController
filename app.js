@@ -16,7 +16,10 @@ var _settings = {
         ssid: undefined, // read from storage
         pw: undefined, // read from storage
         retry_ms: 3000,
-        led_blink_interval_ms: 500
+        led: {
+            blink_interval_ms: 500,
+            interval: 0
+        }
     },
     sr04: {
         trigger_interval_ms: 1000
@@ -52,39 +55,56 @@ function initPins() {
     pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
 }
 
-function initWifi(cb, led_interval) {
+function initWifi() {
     var wifi = _modules.wifi;
     var storage = _modules.storage;
     wifi.setHostname(_settings.host_name);
     wifi.disconnect();
     wifi.stopAP();
 
+    wifi.on('disconnected', function (details) {
+        console.log('Wifi disconnected, reconnecting in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
+        setTimeout(function () {
+            connectWifi();
+        }, _settings.wifi.retry_ms);
+    });
+
     _settings.wifi.ssid = storage.read('wifi_ssid');
     _settings.wifi.pw = storage.read('wifi_pw');
+}
+
+function connectWifi(cb) {
+    var wifi = _modules.wifi;
+
+    clearInterval(_settings.wifi.led.interval);
+    _settings.wifi.led.interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led.blink_interval_ms);
 
     console.log('Wifi connecting...');
-    if (!led_interval) {
-        led_interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
-    }
-
     wifi.connect(_settings.wifi.ssid, {
         password: _settings.wifi.pw
     }, function (err) {
         var ip = wifi.getIP().ip;
         if (err) {
             console.log('Wifi connection error: ' + err);
+            console.log('Retrying in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
+            setTimeout(function () {
+                clearInterval(_settings.wifi.led.interval);
+                connectWifi(cb);
+            }, _settings.wifi.retry_ms);
         }
         else if (!ip || ip == '0.0.0.0') {
-            console.log('Invalid IP, retrying connection in ' + _settings.wifi.retry_ms / 1000 + ' seconds...');
-            setTimeout(function () {
-                initWifi(cb, led_interval);
-            }, _settings.wifi.retry_ms);
+            // do nothing, handler will pick it up
+            if (typeof cb == 'function') {
+                cb();
+            }
         }
         else {
             console.log("Wifi connected! Info: " + JSON.stringify(wifi.getIP()));
-            clearInterval(led_interval);
+            clearInterval(_settings.wifi.led.interval);
             digitalWrite(_settings.pins.wifi_led.pin, 0);
-            cb();
+            if (typeof cb == 'function') {
+                cb();
+            }
         }
     });
 }
@@ -95,6 +115,10 @@ function toggleGPIO(pin, interval) {
         digitalWrite(pin, state);
         state = !state;
     }, interval);
+}
+
+function msToS(ms) {
+    return ms / 1000;
 }
 
 function monitorSR04() {
@@ -123,4 +147,5 @@ function main() {
 
 // ENTRY POINT
 initPins();
-initWifi(main);
+initWifi();
+connectWifi(main);
