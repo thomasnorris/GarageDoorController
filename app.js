@@ -3,26 +3,26 @@
 // require('Storage').write('wifi_pw', <<pw>>)
 // require('Storage').write('assistant_url', <<url>>)
 // require('Storage').write('assistant_endpoint', <<endpoint>>)
-// require('Storage').write('assistant_auth_type', <<type>>)
-// require('Storage').write('assistant_auth_phrase', <<phrase>>)
+// require('Storage').write('assistant_auth', <<auth>>)
 
 // MODULES
 var _modules = {
     wifi: require('Wifi'),
     storage: require('Storage'),
-    sr04: require('HC-SR04')
+    sr04: require('HC-SR04'),
+    http: require('http')
 };
 
 // SETTINGS
 var _settings = {
-    host_name: 'Garage-Door-Controller',
+    host_name: 'Litter-Box-Cycler',
     assistant: {
+        commands: {
+            cycle_box: 'Cycle Ellie\'s Box'
+        },
         url: undefined,       // read from storage
         endpoint: undefined,  // read from storage
-        auth: {
-            type: undefined,    // read from storage
-            phrase: undefined   // read from storage
-        }
+        auth: undefined       // read from storage
     },
     wifi: {
         ssid: undefined,    // read from storage
@@ -34,7 +34,9 @@ var _settings = {
         }
     },
     sr04: {
-        trigger_interval_ms: 1000
+        trigger_interval_ms: 500,
+        interval: 0,
+        connection: undefined
     },
     pins: {
         wifi_led: {
@@ -54,8 +56,9 @@ var _settings = {
     }
 };
 
-// START OF FUNCTIONS
+// INIT FUNCTIONS
 function initPins() {
+    console.log('Initializing pins...');
     var pins = _settings.pins;
 
     // wifi LED
@@ -68,6 +71,8 @@ function initPins() {
 }
 
 function initWifi() {
+    console.log('Initializing wifi...');
+
     _modules.wifi.setHostname(_settings.host_name);
     _modules.wifi.disconnect();
     _modules.wifi.stopAP();
@@ -84,10 +89,16 @@ function initWifi() {
 }
 
 function initAssistant() {
+    console.log('Initializing assistant...');
+
     _settings.assistant.url = readStorage('assistant_url');
     _settings.assistant.endpoint = readStorage('assistant_endpoint');
-    _settings.assistant.auth.type = readStorage('assistant_auth_type');
-    _settings.assistant.auth.phrase = readStorage('assistant_auth_phrase');
+    _settings.assistant.auth = readStorage('assistant_auth');
+}
+
+function initSR04() {
+    var pins = _settings.pins.sr04;
+    _settings.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
 }
 
 function connectWifi(cb) {
@@ -95,7 +106,7 @@ function connectWifi(cb) {
     clearInterval(_settings.wifi.led.interval);
     _settings.wifi.led.interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led.blink_interval_ms);
 
-    console.log('Wifi connecting...');
+    console.log('Connecting wifi...');
     _modules.wifi.connect(_settings.wifi.ssid, {
         password: _settings.wifi.pw
     }, function (err) {
@@ -125,31 +136,9 @@ function connectWifi(cb) {
     });
 }
 
-function toggleGPIO(pin, interval) {
-    var state = 1;
-    return setInterval(function () {
-        digitalWrite(pin, state);
-        state = !state;
-    }, interval);
-}
-
+// HELPER FUNCTIONS
 function msToS(ms) {
     return ms / 1000;
-}
-
-function monitorSR04() {
-    // connect
-    var pins = _settings.pins.sr04;
-    var sr04 = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
-
-    // refresh
-    setInterval(function () {
-        sr04.trigger();
-    }, _settings.sr04.trigger_interval_ms);
-}
-
-function distanceReceived(dist) {
-    console.log(dist + ' cm');
 }
 
 function readStorage(key) {
@@ -162,19 +151,76 @@ function readStorage(key) {
 
     return value;
 }
-// END OF FUNCTIONS
+
+function toggleGPIO(pin, interval) {
+    var state = 1;
+    return setInterval(function () {
+        digitalWrite(pin, state);
+        state = !state;
+    }, interval);
+}
+
+function startMonitorSR04() {
+    _settings.sr04.interval = setInterval(function () {
+        _settings.sr04.connection.trigger();
+    }, _settings.sr04.trigger_interval_ms);
+}
+
+function stopMonitorSR04() {
+    clearInterval(_settings.sr04.interval);
+}
+
+function distanceReceived(dist) {
+    console.log(dist + ' cm');
+
+    if (dist <= 9) {
+        //sendAssistantCommand(_settings.assistant.commands.cycle_box);
+    }
+}
+
+function sendAssistantCommand(command, cb, cb_on_error) {
+    var options = url.parse(_settings.assistant.url + _settings.assistant.endpoint + '/' + encodeURIComponent(command));
+    options.headers = {
+        'X-Auth': _settings.assistant.auth
+    };
+
+    console.log(JSON.stringify(options));
+
+    var req = _modules.http.request(options, function (res) {
+        res.on('data', function (data) {
+            console.log('Assistant Response: ' + data);
+            if (typeof cb == 'function') {
+                cb(data);
+            }
+        });
+
+        res.on('close', function (data) {
+            console.log('Connection closed.');
+        });
+    });
+
+    req.on('error', function (err) {
+        console.log('Assistant error: ' + err);
+        if (typeof cb == 'function' && cb_on_error) {
+            cb(data);
+        }
+    });
+
+    req.end();
+}
 
 // MAIN
 function main() {
     console.log('Ready!');
     console.log('Starting SR04 sensor monitoring');
 
-    monitorSR04();
+    startMonitorSR04();
 }
 
 // ENTRY POINT
 initPins();
 initWifi();
+initSR04();
 initAssistant();
 
 connectWifi(main);
