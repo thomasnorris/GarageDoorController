@@ -1,9 +1,13 @@
 // STARTUP REQUIREMENTS
 // require('Storage').write('wifi_ssid', <<ssid>>)
 // require('Storage').write('wifi_pw', <<pw>>)
+// require('Storage').write('assistant_url', <<url>>)
+// require('Storage').write('assistant_endpoint', <<endpoint>>)
+// require('Storage').write('assistant_auth_type', <<type>>)
+// require('Storage').write('assistant_auth_phrase', <<phrase>>)
 
 // MODULES
-const _modules = {
+var _modules = {
     wifi: require('Wifi'),
     storage: require('Storage'),
     sr04: require('HC-SR04')
@@ -11,10 +15,18 @@ const _modules = {
 
 // SETTINGS
 var _settings = {
-    host_name: 'Garage Door Controller',
+    host_name: 'Garage-Door-Controller',
+    assistant: {
+        url: undefined,       // read from storage
+        endpoint: undefined,  // read from storage
+        auth: {
+            type: undefined,    // read from storage
+            phrase: undefined   // read from storage
+        }
+    },
     wifi: {
-        ssid: undefined, // read from storage
-        pw: undefined, // read from storage
+        ssid: undefined,    // read from storage
+        pw: undefined,      // read from storage
         retry_ms: 3000,
         led: {
             blink_interval_ms: 500,
@@ -56,34 +68,38 @@ function initPins() {
 }
 
 function initWifi() {
-    var wifi = _modules.wifi;
-    var storage = _modules.storage;
-    wifi.setHostname(_settings.host_name);
-    wifi.disconnect();
-    wifi.stopAP();
+    _modules.wifi.setHostname(_settings.host_name);
+    _modules.wifi.disconnect();
+    _modules.wifi.stopAP();
 
-    wifi.on('disconnected', function (details) {
+    _modules.wifi.on('disconnected', function (details) {
         console.log('Wifi disconnected, reconnecting in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
         setTimeout(function () {
             connectWifi();
         }, _settings.wifi.retry_ms);
     });
 
-    _settings.wifi.ssid = storage.read('wifi_ssid');
-    _settings.wifi.pw = storage.read('wifi_pw');
+    _settings.wifi.ssid = readStorage('wifi_ssid');
+    _settings.wifi.pw = readStorage('wifi_pw');
+}
+
+function initAssistant() {
+    _settings.assistant.url = readStorage('assistant_url');
+    _settings.assistant.endpoint = readStorage('assistant_endpoint');
+    _settings.assistant.auth.type = readStorage('assistant_auth_type');
+    _settings.assistant.auth.phrase = readStorage('assistant_auth_phrase');
 }
 
 function connectWifi(cb) {
-    var wifi = _modules.wifi;
-
+    // reset LED blinking
     clearInterval(_settings.wifi.led.interval);
     _settings.wifi.led.interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led.blink_interval_ms);
 
     console.log('Wifi connecting...');
-    wifi.connect(_settings.wifi.ssid, {
+    _modules.wifi.connect(_settings.wifi.ssid, {
         password: _settings.wifi.pw
     }, function (err) {
-        var ip = wifi.getIP().ip;
+        var ip = _modules.wifi.getIP().ip;
         if (err) {
             console.log('Wifi connection error: ' + err);
             console.log('Retrying in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
@@ -99,7 +115,7 @@ function connectWifi(cb) {
             }
         }
         else {
-            console.log("Wifi connected! Info: " + JSON.stringify(wifi.getIP()));
+            console.log("Wifi connected! Info: " + JSON.stringify(_modules.wifi.getIP()));
             clearInterval(_settings.wifi.led.interval);
             digitalWrite(_settings.pins.wifi_led.pin, 0);
             if (typeof cb == 'function') {
@@ -135,6 +151,17 @@ function monitorSR04() {
 function distanceReceived(dist) {
     console.log(dist + ' cm');
 }
+
+function readStorage(key) {
+    console.log('Reading ' + key + ' from Storage...');
+
+    var value = _modules.storage.read(key);
+    if (value == undefined) {
+        console.log(key + ' in Storage is undefined!');
+    }
+
+    return value;
+}
 // END OF FUNCTIONS
 
 // MAIN
@@ -148,4 +175,6 @@ function main() {
 // ENTRY POINT
 initPins();
 initWifi();
+initAssistant();
+
 connectWifi(main);
