@@ -10,33 +10,40 @@ var _modules = {
     wifi: require('Wifi'),
     storage: require('Storage'),
     sr04: require('HC-SR04'),
-    http: require('http')
+    http: require('http'),
+    blynk: require('https://raw.githubusercontent.com/vshymanskyy/blynk-library-js/master/blynk-espruino.js')
 };
 
 // SETTINGS
 var _settings = {
     host_name: 'Litter-Box-Cycler',
+    storage: {
+      wifi: {
+        ssid: 'wifi_ssid',
+        pw: 'wifi_pw'
+      },
+      assistant: {
+        url: 'assistant_url',
+        endpoint: 'assistant_endpoint',
+        auth: 'assistant_auth'
+      }
+    },
     assistant: {
         commands: {
             cycle_box: 'Cycle Ellie\'s Box'
         },
-        url: undefined,       // read from storage
-        endpoint: undefined,  // read from storage
-        auth: undefined       // read from storage
+        url: undefined,       // storage
+        endpoint: undefined,  // storage
+        auth: undefined       // storage
     },
     wifi: {
-        ssid: undefined,    // read from storage
-        pw: undefined,      // read from storage
+        ssid: undefined,      // storage
+        pw: undefined,        // storage
         retry_ms: 3000,
-        led: {
-            blink_interval_ms: 500,
-            interval: 0
-        }
+        led_blink_interval_ms: 500
     },
     sr04: {
-        trigger_interval_ms: 500,
-        interval: 0,
-        connection: undefined
+        trigger_interval_ms: 500
     },
     pins: {
         wifi_led: {
@@ -56,7 +63,18 @@ var _settings = {
     }
 };
 
-// INIT FUNCTIONS
+// GLOBALS
+var _globals = {
+    wifi: {
+        led_blink_interval: 0
+    },
+    sr04: {
+        connection: undefined,
+        interval: 0
+    }
+};
+
+// START FUNCTIONS
 function initPins() {
     console.log('Initializing pins...');
     var pins = _settings.pins;
@@ -84,27 +102,27 @@ function initWifi() {
         }, _settings.wifi.retry_ms);
     });
 
-    _settings.wifi.ssid = readStorage('wifi_ssid');
-    _settings.wifi.pw = readStorage('wifi_pw');
+    _settings.wifi.ssid = readStorage(_settings.storage.wifi.ssid);
+    _settings.wifi.pw = readStorage(_settings.storage.wifi.pw);
 }
 
 function initAssistant() {
     console.log('Initializing assistant...');
 
-    _settings.assistant.url = readStorage('assistant_url');
-    _settings.assistant.endpoint = readStorage('assistant_endpoint');
-    _settings.assistant.auth = readStorage('assistant_auth');
+    _settings.assistant.url = readStorage(_settings.storage.assistant.url);
+    _settings.assistant.endpoint = readStorage(_settings.storage.assistant.endpoint);
+    _settings.assistant.auth = readStorage(_settings.storage.assistant.auth);
 }
 
 function initSR04() {
     var pins = _settings.pins.sr04;
-    _settings.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
+    _globals.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
 }
 
 function connectWifi(cb) {
     // reset LED blinking
-    clearInterval(_settings.wifi.led.interval);
-    _settings.wifi.led.interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led.blink_interval_ms);
+    clearInterval(_globals.wifi.led_blink_interval);
+    _globals.wifi.led_blink_interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
 
     console.log('Connecting wifi...');
     _modules.wifi.connect(_settings.wifi.ssid, {
@@ -115,7 +133,7 @@ function connectWifi(cb) {
             console.log('Wifi connection error: ' + err);
             console.log('Retrying in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
             setTimeout(function () {
-                clearInterval(_settings.wifi.led.interval);
+                clearInterval(_globals.wifi.led_blink_interval);
                 connectWifi(cb);
             }, _settings.wifi.retry_ms);
         }
@@ -127,7 +145,7 @@ function connectWifi(cb) {
         }
         else {
             console.log("Wifi connected! Info: " + JSON.stringify(_modules.wifi.getIP()));
-            clearInterval(_settings.wifi.led.interval);
+            clearInterval(_globals.wifi.led_blink_interval);
             digitalWrite(_settings.pins.wifi_led.pin, 0);
             if (typeof cb == 'function') {
                 cb();
@@ -136,7 +154,6 @@ function connectWifi(cb) {
     });
 }
 
-// HELPER FUNCTIONS
 function msToS(ms) {
     return ms / 1000;
 }
@@ -161,13 +178,13 @@ function toggleGPIO(pin, interval) {
 }
 
 function startMonitorSR04() {
-    _settings.sr04.interval = setInterval(function () {
-        _settings.sr04.connection.trigger();
+    _globals.sr04.interval = setInterval(function () {
+        _globals.sr04.connection.trigger();
     }, _settings.sr04.trigger_interval_ms);
 }
 
 function stopMonitorSR04() {
-    clearInterval(_settings.sr04.interval);
+    clearInterval(_globals.sr04.interval);
 }
 
 function distanceReceived(dist) {
@@ -183,8 +200,6 @@ function sendAssistantCommand(command, cb, cb_on_error) {
     options.headers = {
         'X-Auth': _settings.assistant.auth
     };
-
-    console.log(JSON.stringify(options));
 
     var req = _modules.http.request(options, function (res) {
         res.on('data', function (data) {
@@ -208,13 +223,17 @@ function sendAssistantCommand(command, cb, cb_on_error) {
 
     req.end();
 }
+// END FUNCTIONS
 
 // MAIN
 function main() {
     console.log('Ready!');
-    console.log('Starting SR04 sensor monitoring');
 
+    /*
+    console.log('Starting SR04 sensor monitoring');
     startMonitorSR04();
+    */
+
 }
 
 // ENTRY POINT
@@ -224,3 +243,4 @@ initSR04();
 initAssistant();
 
 connectWifi(main);
+
