@@ -1,4 +1,13 @@
-// SETUP
+// STARTUP REQUIREMENTS
+// require('Storage').write('wifi_ssid', <<ssid>>)
+// require('Storage').write('wifi_pw', <<pw>>)
+// require('Storage').write('assistant_url', <<url>>)
+// require('Storage').write('assistant_endpoint', <<endpoint>>)
+// require('Storage').write('assistant_auth', <<auth>>)
+// require('Storage').write('blynk_url', <<url>>)
+// require('Storage').write('blynk_auth', <<auth>>)
+
+// SETUP FUNCTIONS
 function readStorage(key) {
     console.log('Reading ' + key + ' from Storage...');
 
@@ -18,15 +27,6 @@ function initEnd(section) {
     console.log(section + ' Initialized!\n');
 }
 
-// STARTUP REQUIREMENTS
-// require('Storage').write('wifi_ssid', <<ssid>>)
-// require('Storage').write('wifi_pw', <<pw>>)
-// require('Storage').write('assistant_url', <<url>>)
-// require('Storage').write('assistant_endpoint', <<endpoint>>)
-// require('Storage').write('assistant_auth', <<auth>>)
-// require('Storage').write('blynk_url', <<url>>)
-// require('Storage').write('blynk_auth', <<auth>>)
-
 // MODULES
 initStart('Modules');
 var _modules = {
@@ -34,7 +34,7 @@ var _modules = {
     storage: require('Storage'),
     sr04: require('HC-SR04'),
     http: require('http'),
-    blynk: require('https://raw.githubusercontent.com/vshymanskyy/blynk-library-js/master/blynk-espruino.js')
+    blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
 initEnd('Modules');
 
@@ -54,7 +54,8 @@ var _settings = {
         ssid: readStorage('wifi_ssid'),
         pw: readStorage('wifi_pw'),
         retry_ms: 3000,
-        led_blink_interval_ms: 500
+        led_blink_interval_ms: 500,
+        connection_cb: undefined
     },
     sr04: {
         trigger_interval_ms: 500
@@ -83,21 +84,26 @@ var _settings = {
 };
 initEnd('Settings');
 
-// GLOBALS
 var _globals = {
     wifi: {
+        ip: undefined,
         led_blink_interval: 0
     },
     sr04: {
         connection: undefined,
-        interval: 0
+        interval: 0,
+        dist_cm: undefined
     },
     blynk: {
-        connection: undefined
+        connection: undefined,
+        update_interval_ms: 1000,
+        components: {
+            ip_display: undefined
+        }
     }
 };
 
-// START FUNCTIONS
+
 function initPins() {
     initStart('GPIO');
     var pins = _settings.pins;
@@ -117,14 +123,16 @@ function initWifi() {
     initStart('Wifi');
     _modules.wifi.setHostname(_settings.host_name);
     _modules.wifi.disconnect();
-    _modules.wifi.stopAP();
 
-    _modules.wifi.on('disconnected', function (details) {
+    _modules.wifi.on('disconnected', function (cb) {
         console.log('Wifi disconnected, reconnecting in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
         setTimeout(function () {
             connectWifi();
         }, _settings.wifi.retry_ms);
     });
+
+    // called after wifi connects for the first time
+    _settings.wifi.connection_cb = main;
 
     initEnd('Wifi');
 }
@@ -132,7 +140,7 @@ function initWifi() {
 function initSR04() {
     initStart('SR04');
     var pins = _settings.pins.sr04;
-    _globals.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
+    _globals.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, sr04Echo);
 
     initEnd('SR04');
 }
@@ -145,10 +153,26 @@ function initBlynk() {
         skip_connect: true
     });
 
+    // add components
+    _globals.blynk.components.ip_display = new _globals.blynk.connection.VirtualPin(0);
+    _globals.blynk.components.sr04_dist_cm = new _globals.blynk.connection.VirtualPin(1);
+
+    // cycle updates
+    setInterval(function () {
+        updateBlynkComponent('ip_display', _globals.wifi.ip);
+    }, _globals.blynk.update_interval_ms);
+    setInterval(function () {
+        updateBlynkComponent('sr04_dist_cm', _globals.sr04.dist_cm + ' cm');
+    }, _globals.blynk.update_interval_ms);
+
     initEnd('Blynk');
 }
 
-function connectWifi(cb) {
+function updateBlynkComponent(component, value) {
+    _globals.blynk.components[component].write(value);
+}
+
+function connectWifi() {
     // reset LED blinking
     clearInterval(_globals.wifi.led_blink_interval);
     _globals.wifi.led_blink_interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
@@ -160,35 +184,31 @@ function connectWifi(cb) {
         var ip = _modules.wifi.getIP().ip;
         if (err) {
             console.log('Wifi connection error: ' + err);
-            console.log('Retrying in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
-            setTimeout(function () {
-                clearInterval(_globals.wifi.led_blink_interval);
-                connectWifi(cb);
-            }, _settings.wifi.retry_ms);
+            _modules.wifi.disconnect();
         }
         else if (!ip || ip == '0.0.0.0') {
-            // do nothing, handler will pick it up
-            if (typeof cb == 'function') {
-                cb();
-            }
+            console.log('Invalid Wifi IP.');
+            _modules.wifi.disconnect();
         }
         else {
             console.log("Wifi connected! Info: " + JSON.stringify(_modules.wifi.getIP()));
             clearInterval(_globals.wifi.led_blink_interval);
             digitalWrite(_settings.pins.wifi_led.pin, 0);
-            if (typeof cb == 'function') {
-                cb();
+            _modules.wifi.stopAP();
+
+            _globals.wifi.ip = ip;
+
+            if (typeof _settings.wifi.connection_cb == 'function') {
+                _settings.wifi.connection_cb();
+                _settings.wifi.connection_cb = undefined;
             }
         }
     });
 }
 
 function connectBlynk() {
+    console.log('Connecting Blynk...');
     _globals.blynk.connection.connect();
-}
-
-function disconnectBlynk() {
-    _globals.blynk.connection.disconnect();
 }
 
 function msToS(ms) {
@@ -215,12 +235,8 @@ function stopMonitorSR04() {
     clearInterval(_globals.sr04.interval);
 }
 
-function distanceReceived(dist) {
-    console.log(dist + ' cm');
-
-    if (dist <= 9) {
-        //sendAssistantCommand(_settings.assistant.commands.cycle_box);
-    }
+function sr04Echo(dist) {
+    _globals.sr04.dist_cm = dist.toFixed(2);
 }
 
 function sendAssistantCommand(command, cb, cb_on_error) {
@@ -251,18 +267,19 @@ function sendAssistantCommand(command, cb, cb_on_error) {
 
     req.end();
 }
-// END FUNCTIONS
 
 // MAIN
 function main() {
     console.log('Ready!\n');
-    //startMonitorSR04();
+    connectBlynk();
+    startMonitorSR04();
 }
 
-// ENTRY POINT
+// Init functions
 initPins();
 initWifi();
 initSR04();
 initBlynk();
 
-connectWifi(main);
+// this will call _settings.wifi.connection_cb
+connectWifi();
