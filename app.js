@@ -70,9 +70,14 @@ var _settings = {
     blynk: {
         url: _core.functions.readStorage('blynk_url'),
         auth: _core.functions.readStorage('blynk_auth'),
-        port: 8442
+        port: 8442,
+        cycle_update_interval_ms: 1000,
+        component_vpins: {
+          ip_display: 0,
+          sr04_dist_cm: 1
+        }
     },
-    pins: {
+    gpio: {
         wifi_led: {
             mode: 'output',
             pin: NodeMCU.D0
@@ -116,7 +121,7 @@ var _wifi = {
         connect: function() {
             // reset LED blinking
             clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = _gpio.functions.toggle(_settings.pins.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
+            _wifi.led_blink_interval = _gpio.functions.toggle(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
 
             console.log('Connecting wifi...');
             _modules.wifi.connect(_settings.wifi.ssid, {
@@ -134,7 +139,7 @@ var _wifi = {
                 else {
                     console.log("Wifi connected! Info: " + JSON.stringify(_modules.wifi.getIP()));
                     clearInterval(_wifi.led_blink_interval);
-                    digitalWrite(_settings.pins.wifi_led.pin, 0);
+                    digitalWrite(_settings.gpio.wifi_led.pin, 0);
                     _modules.wifi.stopAP();
 
                     _wifi.ip = ip;
@@ -155,7 +160,7 @@ var _sr04 = {
     functions: {
         init: function() {
             _core.functions.init.start('SR04');
-            var pins = _settings.pins.sr04;
+            var pins = _settings.gpio.sr04;
             _sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, _sr04.functions.onEcho);
 
             _core.functions.init.end('SR04');
@@ -179,7 +184,6 @@ var _sr04 = {
 };
 var _blynk = {
     connection: undefined,
-    cycle_update_interval_ms: 1000,
     components: {
         ip_display: undefined,
         sr04_dist_cm: undefined
@@ -194,16 +198,25 @@ var _blynk = {
             });
 
             // add components
-            _blynk.components.ip_display = new _blynk.connection.VirtualPin(0);
-            _blynk.components.sr04_dist_cm = new _blynk.connection.VirtualPin(1);
+            _blynk.components.ip_display = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.ip_display);
+            _blynk.components.sr04_dist_cm = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.sr04_dist_cm);
 
             // cycle updates
+<<<<<<< HEAD
             _setInterval(function () {
                 _blynk.functions.updateComponent('ip_display', _wifi.ip);
             }, _blynk.cycle_update_interval_ms);
             _setInterval(function () {
                 _blynk.functions.updateComponent('sr04_dist_display', _sr04.dist_cm + ' cm');
             }, _blynk.cycle_update_interval_ms);
+=======
+            setInterval(function () {
+                _blynk.functions.updateComponent('ip_display', _wifi.ip);
+            }, _settings.blynk.cycle_update_interval_ms);
+            setInterval(function () {
+                _blynk.functions.updateComponent('sr04_dist_cm', _sr04.dist_cm + 'cm');
+            }, _settings.blynk.cycle_update_interval_ms);
+>>>>>>> a96d90a81ad37a02ec5607b15dd88bbd8c56acd3
 
             _core.functions.init.end('Blynk');
         },
@@ -220,7 +233,7 @@ var _gpio = {
     functions: {
         init: function() {
             _core.functions.init.start('GPIO');
-            var pins = _settings.pins;
+            var pins = _settings.gpio;
 
             // wifi LED
             pinMode(pins.wifi_led.pin, pins.wifi_led.mode);
