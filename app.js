@@ -27,6 +27,9 @@ var _core = {
             end: function(section) {
                 console.log(section + ' Initialized!\n');
             }
+        },
+        msToS: function(ms) {
+            return ms / 1000;
         }
     }
 };
@@ -99,9 +102,9 @@ var _wifi = {
             _modules.wifi.disconnect();
 
             _modules.wifi.on('disconnected', function (cb) {
-                console.log('Wifi disconnected, reconnecting in ' + msToS(_settings.wifi.retry_ms) + ' seconds...');
+                console.log('Wifi disconnected, reconnecting in ' + _core.functions.msToS(_settings.wifi.retry_ms) + ' seconds...');
                 setTimeout(function () {
-                    connectWifi();
+                    _wifi.functions.connect();
                 }, _settings.wifi.retry_ms);
             });
 
@@ -113,7 +116,7 @@ var _wifi = {
         connect: function() {
             // reset LED blinking
             clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = toggleGPIO(_settings.pins.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
+            _wifi.led_blink_interval = _gpio.functions.toggle(_settings.pins.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
 
             console.log('Connecting wifi...');
             _modules.wifi.connect(_settings.wifi.ssid, {
@@ -159,12 +162,24 @@ var _sr04 = {
         },
         onEcho: function(dist) {
             _sr04.dist_cm = dist.toFixed(2);
+        },
+        monitor: {
+            start: function() {
+                console.log('Starting SR04 sensor monitoring.');
+                _sr04.interval = setInterval(function () {
+                    _sr04.connection.trigger();
+                }, _settings.sr04.trigger_interval_ms);
+            },
+            stop: function() {
+                console.log('Stopping SR04 sensor monitoring.');
+                clearInterval(_sr04.interval);
+            }
         }
     }
 };
 var _blynk = {
     connection: undefined,
-    update_interval_ms: 1000,
+    cycle_update_interval_ms: 1000,
     components: {
         ip_display: undefined,
         sr04_dist_cm: undefined
@@ -183,14 +198,20 @@ var _blynk = {
             _blynk.components.sr04_dist_cm = new _blynk.connection.VirtualPin(1);
 
             // cycle updates
-            setInterval(function () {
-                _blynk.functions.updateComponent('ip_display', _wifi.ip);
-            }, _blynk.update_interval_ms);
-            setInterval(function () {
-                _blynk.functions.updateComponent('sr04_dist_cm', _sr04.dist_cm + ' cm');
-            }, _blynk.update_interval_ms);
+            _blynk.functions.cycleComponent('ip_display', _wifi.ip);
+            _blynk.functions.cycleComponent('sr04_dist_cm', _sr04.dist_cm + ' cm');
 
             _core.functions.init.end('Blynk');
+        },
+        connect: function() {
+            console.log('Connecting Blynk...');
+            _blynk.connection.connect();
+        },
+        cycleComponent: function(component, value) {
+            console.log('Updating ' + component + ' every ' + _core.functions.msToS(_blynk.cycle_update_interval_ms) + ' seconds.');
+            setInterval(function () {
+                _blynk.functions.updateComponent(component, value);
+            }, _blynk.cycle_update_interval_ms);
         },
         updateComponent: function(component, value) {
             _blynk.components[component].write(value);
@@ -212,73 +233,54 @@ var _gpio = {
             pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
 
             _core.functions.init.end('GPIO');
+        },
+        toggle: function(pin, interval) {
+            var state = 1;
+            return setInterval(function () {
+                digitalWrite(pin, state);
+                state = !state;
+            }, interval);
         }
     }
-}
+};
+var _assistant = {
+    functions: {
+        send: function(command, cb, cb_on_error) {
+            var options = url.parse(_settings.assistant.url + _settings.assistant.endpoint + '/' + encodeURIComponent(command));
+            options.headers = {
+                'X-Auth': _settings.assistant.auth
+            };
 
-function connectBlynk() {
-    console.log('Connecting Blynk...');
-    _blynk.connection.connect();
-}
+            var req = _modules.http.request(options, function (res) {
+                res.on('data', function (data) {
+                    console.log('Assistant Response: ' + data);
+                    if (typeof cb == 'function') {
+                        cb(data);
+                    }
+                });
 
-function msToS(ms) {
-    return ms / 1000;
-}
+                res.on('close', function (data) {
+                    console.log('Connection closed.');
+                });
+            });
 
-function toggleGPIO(pin, interval) {
-    var state = 1;
-    return setInterval(function () {
-        digitalWrite(pin, state);
-        state = !state;
-    }, interval);
-}
+            req.on('error', function (err) {
+                console.log('Assistant error: ' + err);
+                if (typeof cb == 'function' && cb_on_error) {
+                    cb(data);
+                }
+            });
 
-function startMonitorSR04() {
-    console.log('Starting SR04 sensor monitoring.');
-    _sr04.interval = setInterval(function () {
-        _sr04.connection.trigger();
-    }, _settings.sr04.trigger_interval_ms);
-}
-
-function stopMonitorSR04() {
-    console.log('Stopping SR04 sensor monitoring.');
-    clearInterval(_sr04.interval);
-}
-
-function sendAssistantCommand(command, cb, cb_on_error) {
-    var options = url.parse(_settings.assistant.url + _settings.assistant.endpoint + '/' + encodeURIComponent(command));
-    options.headers = {
-        'X-Auth': _settings.assistant.auth
-    };
-
-    var req = _modules.http.request(options, function (res) {
-        res.on('data', function (data) {
-            console.log('Assistant Response: ' + data);
-            if (typeof cb == 'function') {
-                cb(data);
-            }
-        });
-
-        res.on('close', function (data) {
-            console.log('Connection closed.');
-        });
-    });
-
-    req.on('error', function (err) {
-        console.log('Assistant error: ' + err);
-        if (typeof cb == 'function' && cb_on_error) {
-            cb(data);
+            req.end();
         }
-    });
-
-    req.end();
-}
+    }
+};
 
 // MAIN
 function main() {
     console.log('Ready!\n');
-    connectBlynk();
-    startMonitorSR04();
+    _blynk.functions.connect();
+    _sr04.functions.monitor.start();
 }
 
 // Init functions
