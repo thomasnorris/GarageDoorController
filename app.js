@@ -202,21 +202,12 @@ var _blynk = {
             _blynk.components.sr04_dist_cm = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.sr04_dist_cm);
 
             // cycle updates
-<<<<<<< HEAD
-            _setInterval(function () {
-                _blynk.functions.updateComponent('ip_display', _wifi.ip);
-            }, _blynk.cycle_update_interval_ms);
-            _setInterval(function () {
-                _blynk.functions.updateComponent('sr04_dist_display', _sr04.dist_cm + ' cm');
-            }, _blynk.cycle_update_interval_ms);
-=======
             setInterval(function () {
                 _blynk.functions.updateComponent('ip_display', _wifi.ip);
             }, _settings.blynk.cycle_update_interval_ms);
             setInterval(function () {
                 _blynk.functions.updateComponent('sr04_dist_cm', _sr04.dist_cm + 'cm');
             }, _settings.blynk.cycle_update_interval_ms);
->>>>>>> a96d90a81ad37a02ec5607b15dd88bbd8c56acd3
 
             _core.functions.init.end('Blynk');
         },
