@@ -74,7 +74,9 @@ var _settings = {
         cycle_update_interval_ms: 1000,
         component_vpins: {
           ip_display: 0,
-          sr04_dist_cm: 1
+          sr04_dist_cm: 1,
+          cycle_box_button: 2,
+          reboot_button: 3
         }
     },
     gpio: {
@@ -186,7 +188,10 @@ var _blynk = {
     connection: undefined,
     components: {
         ip_display: undefined,
-        sr04_dist_cm: undefined
+        sr04_dist_cm: undefined,
+        cycle_box_button: undefined,
+        notify: undefined,
+      reboot_button: undefined
     },
     functions: {
         init: function() {
@@ -200,6 +205,8 @@ var _blynk = {
             // add components
             _blynk.components.ip_display = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.ip_display);
             _blynk.components.sr04_dist_cm = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.sr04_dist_cm);
+            _blynk.components.cycle_box_button = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.cycle_box_button);
+            _blynk.components.reboot_button = new _blynk.connection.VirtualPin(_settings.blynk.component_vpins.reboot_button);
 
             // cycle updates
             setInterval(function () {
@@ -209,6 +216,19 @@ var _blynk = {
                 _blynk.functions.updateComponent('sr04_dist_cm', _sr04.dist_cm + 'cm');
             }, _settings.blynk.cycle_update_interval_ms);
 
+            // handlers for buttons
+            _blynk.functions.onWrite(_blynk.components.cycle_box_button, null, function() {
+              _assistant.functions.send(_settings.assistant.commands.cycle_box, function(resp) {
+                _blynk.functions.notify(resp);
+              });
+            });
+
+            // reboot the system
+            _blynk.functions.onWrite(_blynk.components.reboot_button, null, function() {
+              _blynk.functions.notify('Rebooting...');
+              setTimeout(E.reboot, 2000);
+            });
+
             _core.functions.init.end('Blynk');
         },
         connect: function() {
@@ -217,6 +237,19 @@ var _blynk = {
         },
         updateComponent: function(component, value) {
             _blynk.components[component].write(value);
+        },
+        notify: function(msg){
+          _blynk.connection.notify(msg);
+        },
+        onWrite: function(component, cb_0, cb_1) {
+          component.on('write', function(value) {
+            if (value == 0 && typeof cb_0 == 'function') {
+              cb_0();
+            }
+            else if (value == 1 && typeof cb_1 == 'function') {
+              cb_1();
+            }
+          });
         }
     }
 };
@@ -269,7 +302,7 @@ var _assistant = {
             req.on('error', function (err) {
                 console.log('Assistant error: ' + err);
                 if (typeof cb == 'function' && cb_on_error) {
-                    cb(data);
+                    cb(err);
                 }
             });
 
