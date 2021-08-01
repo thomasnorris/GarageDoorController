@@ -1,3 +1,23 @@
+// SETUP
+function readStorage(key) {
+    console.log('Reading ' + key + ' from Storage...');
+
+    var value = _modules.storage.read(key);
+    if (value == undefined) {
+        console.log(key + ' in Storage is undefined!');
+    }
+
+    return value;
+}
+
+function initStart(section) {
+    console.log('Initializing ' + section + '...');
+}
+
+function initEnd(section) {
+    console.log(section + ' Initialized!\n');
+}
+
 // STARTUP REQUIREMENTS
 // require('Storage').write('wifi_ssid', <<ssid>>)
 // require('Storage').write('wifi_pw', <<pw>>)
@@ -8,6 +28,7 @@
 // require('Storage').write('blynk_auth', <<auth>>)
 
 // MODULES
+initStart('Modules');
 var _modules = {
     wifi: require('Wifi'),
     storage: require('Storage'),
@@ -15,36 +36,23 @@ var _modules = {
     http: require('http'),
     blynk: require('https://raw.githubusercontent.com/vshymanskyy/blynk-library-js/master/blynk-espruino.js')
 };
+initEnd('Modules');
 
 // SETTINGS
+initStart('Settings');
 var _settings = {
     host_name: 'Litter-Box-Cycler',
-    storage: {
-      wifi: {
-        ssid: 'wifi_ssid',
-        pw: 'wifi_pw'
-      },
-      assistant: {
-        url: 'assistant_url',
-        endpoint: 'assistant_endpoint',
-        auth: 'assistant_auth'
-      },
-      blynk: {
-        url: 'blynk_url',
-        auth: 'blynk_auth'
-      }
-    },
     assistant: {
         commands: {
             cycle_box: 'Cycle Ellie\'s Box'
         },
-        url: undefined,       // storage
-        endpoint: undefined,  // storage
-        auth: undefined       // storage
+        url: readStorage('assistant_url'),
+        endpoint: readStorage('assistant_endpoint'),
+        auth: readStorage('assistant_auth')
     },
     wifi: {
-        ssid: undefined,      // storage
-        pw: undefined,        // storage
+        ssid: readStorage('wifi_ssid'),
+        pw: readStorage('wifi_pw'),
         retry_ms: 3000,
         led_blink_interval_ms: 500
     },
@@ -52,8 +60,8 @@ var _settings = {
         trigger_interval_ms: 500
     },
     blynk: {
-        url: undefined,       // storage
-        auth: undefined,      // storage
+        url: readStorage('blynk_url'),
+        auth: readStorage('blynk_auth'),
         port: 8442
     },
     pins: {
@@ -73,6 +81,7 @@ var _settings = {
         }
     }
 };
+initEnd('Settings');
 
 // GLOBALS
 var _globals = {
@@ -84,12 +93,13 @@ var _globals = {
         interval: 0
     },
     blynk: {
-      connection: undefined
+        connection: undefined
     }
 };
 
 // START FUNCTIONS
 function initPins() {
+    initStart('GPIO');
     var pins = _settings.pins;
 
     // wifi LED
@@ -100,10 +110,11 @@ function initPins() {
     pinMode(pins.sr04.trig.pin, pins.sr04.trig.mode);
     pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
 
-    console.log('GPIO initialized.\n');
+    initEnd('GPIO');
 }
 
 function initWifi() {
+    initStart('Wifi');
     _modules.wifi.setHostname(_settings.host_name);
     _modules.wifi.disconnect();
     _modules.wifi.stopAP();
@@ -115,38 +126,26 @@ function initWifi() {
         }, _settings.wifi.retry_ms);
     });
 
-    _settings.wifi.ssid = readStorage(_settings.storage.wifi.ssid);
-    _settings.wifi.pw = readStorage(_settings.storage.wifi.pw);
-
-    console.log('Wifi initialized.\n');
-}
-
-function initAssistant() {
-    _settings.assistant.url = readStorage(_settings.storage.assistant.url);
-    _settings.assistant.endpoint = readStorage(_settings.storage.assistant.endpoint);
-    _settings.assistant.auth = readStorage(_settings.storage.assistant.auth);
-
-    console.log('Assistant initialized.\n');
+    initEnd('Wifi');
 }
 
 function initSR04() {
+    initStart('SR04');
     var pins = _settings.pins.sr04;
     _globals.sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, distanceReceived);
 
-    console.log('SR04 initialized.\n');
+    initEnd('SR04');
 }
 
 function initBlynk() {
-  _settings.blynk.url = readStorage(_settings.storage.blynk.url);
-  _settings.blynk.auth = readStorage(_settings.storage.blynk.auth);
+    initStart('Blynk');
+    _globals.blynk.connection = new _modules.blynk.Blynk(_settings.blynk.auth, {
+        addr: _settings.blynk.url,
+        port: _settings.blynk.port,
+        skip_connect: true
+    });
 
-  _globals.blynk.connection = new _modules.blynk.Blynk(_settings.blynk.auth, {
-      addr: _settings.blynk.url,
-      port: _settings.blynk.port,
-      skip_connect: true
-  });
-
-  console.log('Blynk initialized.\n');
+    initEnd('Blynk');
 }
 
 function connectWifi(cb) {
@@ -185,26 +184,15 @@ function connectWifi(cb) {
 }
 
 function connectBlynk() {
-  _globals.blynk.connection.connect();
+    _globals.blynk.connection.connect();
 }
 
 function disconnectBlynk() {
-  _globals.blynk.connection.disconnect();
+    _globals.blynk.connection.disconnect();
 }
 
 function msToS(ms) {
     return ms / 1000;
-}
-
-function readStorage(key) {
-    console.log('Reading ' + key + ' from Storage...');
-
-    var value = _modules.storage.read(key);
-    if (value == undefined) {
-        console.log(key + ' in Storage is undefined!');
-    }
-
-    return value;
 }
 
 function toggleGPIO(pin, interval) {
@@ -268,15 +256,13 @@ function sendAssistantCommand(command, cb, cb_on_error) {
 // MAIN
 function main() {
     console.log('Ready!\n');
-    startMonitorSR04();
+    //startMonitorSR04();
 }
 
 // ENTRY POINT
 initPins();
 initWifi();
 initSR04();
-initAssistant();
 initBlynk();
 
 connectWifi(main);
-
