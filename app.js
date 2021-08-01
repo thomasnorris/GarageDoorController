@@ -109,7 +109,7 @@ var _wifi = {
             _modules.wifi.setHostname(_settings.host_name);
             _modules.wifi.disconnect();
 
-            _modules.wifi.on('disconnected', function (cb) {
+            _wifi.fn.onDisconnected(function () {
                 console.log('Wifi disconnected, reconnecting in ' + _core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
                 setTimeout(function () {
                     _wifi.fn.connect();
@@ -153,6 +153,9 @@ var _wifi = {
                     }
                 }
             });
+        },
+        onDisconnected: function (cb) {
+            _modules.wifi.on('disconnected', cb);
         }
     }
 };
