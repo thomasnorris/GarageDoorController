@@ -198,20 +198,18 @@ var _blynk = {
             _blynk.components.sr04_dist_cm = new _blynk.connection.VirtualPin(1);
 
             // cycle updates
-            _blynk.functions.cycleComponent('ip_display', _wifi.ip);
-            _blynk.functions.cycleComponent('sr04_dist_cm', _sr04.dist_cm + ' cm');
+            _setInterval(function () {
+                _blynk.functions.updateComponent('ip_display', _wifi.ip);
+            }, _blynk.cycle_update_interval_ms);
+            _setInterval(function () {
+                _blynk.functions.updateComponent('sr04_dist_display', _sr04.dist_cm + ' cm');
+            }, _blynk.cycle_update_interval_ms);
 
             _core.functions.init.end('Blynk');
         },
         connect: function() {
             console.log('Connecting Blynk...');
             _blynk.connection.connect();
-        },
-        cycleComponent: function(component, value) {
-            console.log('Updating ' + component + ' every ' + _core.functions.msToS(_blynk.cycle_update_interval_ms) + ' seconds.');
-            setInterval(function () {
-                _blynk.functions.updateComponent(component, value);
-            }, _blynk.cycle_update_interval_ms);
         },
         updateComponent: function(component, value) {
             _blynk.components[component].write(value);
