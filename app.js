@@ -78,7 +78,8 @@ var _settings = {
             sr04_dist_cm: 1,
             cycle_box_button: 2,
             reboot_button: 3
-        }
+        },
+        conection_cb: undefined
     },
     gpio: {
         wifi_led: {
@@ -104,7 +105,7 @@ var _wifi = {
     ip: undefined,
     led_blink_interval: 0,
     fn: {
-        init: function () {
+        init: function (cb) {
             _core.fn.init.start('Wifi');
             _modules.wifi.setHostname(_settings.host_name);
             _modules.wifi.disconnect();
@@ -117,7 +118,7 @@ var _wifi = {
             });
 
             // called after wifi connects for the first time
-            _settings.wifi.connection_cb = main;
+            _settings.wifi.connection_cb = cb;
 
             _core.fn.init.end('Wifi');
         },
@@ -198,7 +199,7 @@ var _blynk = {
         reboot_button: undefined
     },
     fn: {
-        init: function () {
+        init: function (cb) {
             _core.fn.init.start('Blynk');
             _blynk.connection = new _modules.blynk.Blynk(_settings.blynk.auth, {
                 addr: _settings.blynk.url,
@@ -220,7 +221,15 @@ var _blynk = {
                 _blynk.fn.updateComponent('sr04_dist_cm', _sr04.dist_cm + 'cm');
             }, _settings.blynk.cycle_update_interval_ms);
 
+            _blynk.fn.onConnect(function() {
+                if (typeof _settings.blynk.conection_cb == 'function') {
+                    _settings.blynk.conection_cb();
+                    _settings.blynk.conection_cb = undefined;
+                }
+            });
+
             // handlers for buttons
+            // manual box trigger
             _blynk.fn.onWrite(_blynk.components.cycle_box_button, null, function () {
                 _assistant.fn.send(_settings.assistant.commands.cycle_box, function (resp) {
                     _blynk.fn.notify(resp);
@@ -233,11 +242,17 @@ var _blynk = {
                 setTimeout(E.reboot, _settings.blynk.reboot_timeout_ms);
             });
 
+            // called after blynk connects for the first time
+            _settings.blynk.conection_cb = cb;
+
             _core.fn.init.end('Blynk');
         },
         connect: function () {
             console.log('Connecting Blynk...');
             _blynk.connection.connect();
+        },
+        onConnect: function(cb) {
+            _blynk.connection.on('connect', cb);
         },
         updateComponent: function (component, value) {
             _blynk.components[component].write(value);
@@ -318,15 +333,14 @@ var _assistant = {
 // MAIN
 function main() {
     console.log('Ready!\n');
-    _blynk.fn.connect();
     _sr04.fn.monitor.start();
 }
 
 // Init functions
 _gpio.fn.init();
-_wifi.fn.init();
 _sr04.fn.init();
-_blynk.fn.init();
+_wifi.fn.init(_blynk.fn.connect);
+_blynk.fn.init(main);
 
 // this will call _settings.wifi.connection_cb
 _wifi.fn.connect();
