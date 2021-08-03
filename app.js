@@ -22,56 +22,61 @@ _core.fn.init.end('Modules');
 
 // SETTINGS
 _core.fn.init.start('Settings');
-var _settings = {
+var _settings = {};
+_settings.gpio = {
+  wifi_led: {
+      mode: 'output',
+      pin: NodeMCU.D0
+  },
+  sr04: {
+      trig: {
+          mode: 'output',
+          pin: NodeMCU.D1
+      },
+      echo: {
+          mode: 'input',
+          pin: NodeMCU.D2
+      }
+  }
+};
+_settings.assistant = {
+      commands: {
+          cycle_box: 'Cycle Ellie\'s Box'
+      },
+      url: _core.fn.readStorage('assistant_url'),
+      endpoint: _core.fn.readStorage('assistant_endpoint'),
+      auth: _core.fn.readStorage('assistant_auth')
+};
+_settings.wifi = {
     host_name: 'Litter-Box-Cycler',
-    assistant: {
-        commands: {
-            cycle_box: 'Cycle Ellie\'s Box'
-        },
-        url: _core.fn.readStorage('assistant_url'),
-        endpoint: _core.fn.readStorage('assistant_endpoint'),
-        auth: _core.fn.readStorage('assistant_auth')
+    ssid: _core.fn.readStorage('wifi_ssid'),
+    pw: _core.fn.readStorage('wifi_pw'),
+    retry_ms: 3000,
+    led: {
+      enable_toggle: true,
+      gpio: _settings.gpio.wifi_led.pin,
+      high_value: 0,
+      blink_interval_ms: 500
     },
-    wifi: {
-        ssid: _core.fn.readStorage('wifi_ssid'),
-        pw: _core.fn.readStorage('wifi_pw'),
-        retry_ms: 3000,
-        led_blink_interval_ms: 500,
-        connection_cb: undefined
+    led_blink_interval_ms: 500,
+    connection_cb: undefined
+};
+_settings.sr04 = {
+  trigger_interval_ms: 500
+};
+_settings.blynk = {
+    url: _core.fn.readStorage('blynk_url'),
+    auth: _core.fn.readStorage('blynk_auth'),
+    port: 8442,
+    cycle_update_interval_ms: 1000,
+    reboot_timeout_ms: 2000,
+    component_vpins: {
+        ip_display: 0,
+        sr04_dist_cm: 1,
+        cycle_box_button: 2,
+        reboot_button: 3
     },
-    sr04: {
-        trigger_interval_ms: 500
-    },
-    blynk: {
-        url: _core.fn.readStorage('blynk_url'),
-        auth: _core.fn.readStorage('blynk_auth'),
-        port: 8442,
-        cycle_update_interval_ms: 1000,
-        reboot_timeout_ms: 2000,
-        component_vpins: {
-            ip_display: 0,
-            sr04_dist_cm: 1,
-            cycle_box_button: 2,
-            reboot_button: 3
-        },
-        conection_cb: undefined
-    },
-    gpio: {
-        wifi_led: {
-            mode: 'output',
-            pin: NodeMCU.D0
-        },
-        sr04: {
-            trig: {
-                mode: 'output',
-                pin: NodeMCU.D1
-            },
-            echo: {
-                mode: 'input',
-                pin: NodeMCU.D2
-            }
-        }
-    }
+    conection_cb: undefined
 };
 _core.fn.init.end('Settings');
 
