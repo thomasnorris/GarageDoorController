@@ -3,7 +3,7 @@ var http = require('http');
 var _assistant = function(settings) {
     var self = this;
 
-    self.settings = {
+    this.settings = {
         url: settings.url,
         endpoint: settings.endpoint,
         auth: settings.auth
