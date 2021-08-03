@@ -16,6 +16,7 @@ var _modules = {
     wifi: require('Wifi'),
     sr04: require('HC-SR04'),
     http: require('http'),
+    assistant: require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/assistant.js').assistant,
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
 _core.fn.init.end('Modules');
@@ -272,38 +273,7 @@ var _gpio = {
         }
     }
 };
-var _assistant = {
-    fn: {
-        send: function (command, cb, cb_on_error) {
-            var options = url.parse(_settings.assistant.url + _settings.assistant.endpoint + '/' + encodeURIComponent(command));
-            options.headers = {
-                'X-Auth': _settings.assistant.auth
-            };
-
-            var req = _modules.http.request(options, function (res) {
-                res.on('data', function (data) {
-                    console.log('Assistant Response: ' + data);
-                    if (typeof cb == 'function') {
-                        cb(data);
-                    }
-                });
-
-                res.on('close', function (data) {
-                    console.log('Connection closed.');
-                });
-            });
-
-            req.on('error', function (err) {
-                console.log('Assistant error: ' + err);
-                if (typeof cb == 'function' && cb_on_error) {
-                    cb(err);
-                }
-            });
-
-            req.end();
-        }
-    }
-};
+var _assistant = new _modules.assistant(_settings.assistant);
 
 // MAIN
 function main() {
