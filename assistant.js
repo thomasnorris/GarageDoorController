@@ -1,7 +1,9 @@
 
 var http = require('http');
 var _assistant = function(settings) {
-    this.settings = {
+    var self = this;
+
+    self.settings = {
         url: settings.url,
         endpoint: settings.endpoint,
         auth: settings.auth
@@ -9,9 +11,9 @@ var _assistant = function(settings) {
 
     this.send = function(command, cb, cb_on_error) {
         console.log(this);
-        var options = url.parse(this.settings.url + this.settings.endpoint + '/' + encodeURIComponent(command));
+        var options = url.parse(self.settings.url + self.settings.endpoint + '/' + encodeURIComponent(command));
         options.headers = {
-            'X-Auth': this.settings.auth
+            'X-Auth': self.settings.auth
         };
 
         var req = http.request(options, function (res) {
