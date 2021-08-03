@@ -7,14 +7,13 @@
 // require('Storage').write('blynk_url', <<url>>)
 // require('Storage').write('blynk_auth', <<auth>>)
 
-// SETUP FUNCTIONS
+// CORE
 var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/core.js').core;
 
 // MODULES
 _core.fn.init.start('Modules');
 var _modules = {
     wifi: require('Wifi'),
-    storage: require('Storage'),
     sr04: require('HC-SR04'),
     http: require('http'),
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
