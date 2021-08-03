@@ -9,6 +9,7 @@ var _assistant = function(settings) {
 
     this.fn = {
         send: function (command, cb, cb_on_error) {
+            console.log(this);
             var options = url.parse(this.settings.url + this.settings.endpoint + '/' + encodeURIComponent(command));
             options.headers = {
                 'X-Auth': this.settings.auth
