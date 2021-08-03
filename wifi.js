@@ -1,4 +1,4 @@
-var _wifi = function (settings) {
+var _wifi = function (settings, connection_cb) {
     var wifi = require('Wifi');
     var self = this;
 
@@ -8,7 +8,6 @@ var _wifi = function (settings) {
         ssid: settings.ssid,
         pw: settings.pw,
         retry_ms: settings.retry_ms,
-        first_connection_cb: settings.first_connection_cb,
         // optional
         led: {
             enable_toggle: settings.led.enable_toggle || false,
@@ -17,6 +16,8 @@ var _wifi = function (settings) {
             blink_interval_ms: settings.led.blink_interval_ms || 100
         }
     };
+
+    this.connection_cb = connection_cb;
 
     this.connection_info = undefined;
     this.led_blink_interval = 0;
@@ -65,9 +66,9 @@ var _wifi = function (settings) {
 
                 wifi.stopAP();
 
-                if (typeof self.settings.first_connection_cb == 'function') {
-                    self.settings.connection_cb();
-                    self.settings.first_connection_cb = undefined;
+                if (typeof self.connection_cb == 'function') {
+                    self.connection_cb();
+                    self.connection_cb = undefined;
                 }
             }
         },

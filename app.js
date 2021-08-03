@@ -13,9 +13,8 @@ var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotC
 // MODULES
 _core.fn.init.start('Modules');
 var _modules = {
-    wifi: require('Wifi'),
+    wifi: require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/wifi.js').wifi,
     sr04: require('HC-SR04'),
-    http: require('http'),
     assistant: require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/assistant.js').assistant,
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
@@ -77,65 +76,8 @@ var _settings = {
 _core.fn.init.end('Settings');
 
 // GLOBALS
-var _wifi = {
-    ip: undefined,
-    led_blink_interval: 0,
-    fn: {
-        init: function (cb) {
-            _core.fn.init.start('Wifi');
-            _modules.wifi.setHostname(_settings.host_name);
-            _modules.wifi.disconnect();
-
-            _wifi.fn.onDisconnected(function () {
-                console.log('Wifi disconnected, reconnecting in ' + _core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
-                setTimeout(function () {
-                    _wifi.fn.connect();
-                }, _settings.wifi.retry_ms);
-            });
-
-            // called after wifi connects for the first time
-            _settings.wifi.connection_cb = cb;
-
-            _core.fn.init.end('Wifi');
-        },
-        connect: function () {
-            // reset LED blinking
-            clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = _gpio.fn.toggle(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
-
-            console.log('Connecting wifi...');
-            _modules.wifi.connect(_settings.wifi.ssid, {
-                password: _settings.wifi.pw
-            }, function (err) {
-                var ip = _modules.wifi.getIP().ip;
-                if (err) {
-                    console.log('Wifi connection error: ' + err);
-                    _modules.wifi.disconnect();
-                }
-                else if (!ip || ip == '0.0.0.0') {
-                    console.log('Invalid Wifi IP.');
-                    _modules.wifi.disconnect();
-                }
-                else {
-                    console.log("Wifi connected! Info: " + JSON.stringify(_modules.wifi.getIP()));
-                    clearInterval(_wifi.led_blink_interval);
-                    digitalWrite(_settings.gpio.wifi_led.pin, 0);
-                    _modules.wifi.stopAP();
-
-                    _wifi.ip = ip;
-
-                    if (typeof _settings.wifi.connection_cb == 'function') {
-                        _settings.wifi.connection_cb();
-                        _settings.wifi.connection_cb = undefined;
-                    }
-                }
-            });
-        },
-        onDisconnected: function (cb) {
-            _modules.wifi.on('disconnected', cb);
-        }
-    }
-};
+var _wifi = new _modules.wifi(_settings.wifi, _blynk.fn.connect);
+var _assistant = new _modules.assistant(_settings.assistant);
 var _sr04 = {
     connection: undefined,
     interval: 0,
@@ -273,7 +215,6 @@ var _gpio = {
         }
     }
 };
-var _assistant = new _modules.assistant(_settings.assistant);
 
 // MAIN
 function main() {
@@ -284,8 +225,7 @@ function main() {
 // Init functions
 _gpio.fn.init();
 _sr04.fn.init();
-_wifi.fn.init(_blynk.fn.connect);
 _blynk.fn.init(main);
 
-// this will call _settings.wifi.connection_cb
+// kick it off
 _wifi.fn.connect();
