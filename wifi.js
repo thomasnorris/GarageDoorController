@@ -59,7 +59,7 @@ var _wifi = function (settings, connection_cb) {
             }
             else {
                 console.log("Wifi connected! Info: " + JSON.stringify(self.connection_info));
-                if (self.settings.toggle_led) {
+                if (self.settings.led.enable_toggle) {
                     clearInterval(self.led_blink_interval);
                     digitalWrite(self.settings.led_gpio_pin, self.settings.led_high_value);
                 }
