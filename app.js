@@ -24,28 +24,28 @@ _core.fn.init.end('Modules');
 _core.fn.init.start('Settings');
 var _settings = {};
 _settings.gpio = {
-  wifi_led: {
-      mode: 'output',
-      pin: NodeMCU.D0
-  },
-  sr04: {
-      trig: {
-          mode: 'output',
-          pin: NodeMCU.D1
-      },
-      echo: {
-          mode: 'input',
-          pin: NodeMCU.D2
-      }
-  }
+    wifi_led: {
+        mode: 'output',
+        pin: NodeMCU.D0
+    },
+    sr04: {
+        trig: {
+            mode: 'output',
+            pin: NodeMCU.D1
+        },
+        echo: {
+            mode: 'input',
+            pin: NodeMCU.D2
+        }
+    }
 };
 _settings.assistant = {
-      commands: {
-          cycle_box: 'Cycle Ellie\'s Box'
-      },
-      url: _core.fn.readStorage('assistant_url'),
-      endpoint: _core.fn.readStorage('assistant_endpoint'),
-      auth: _core.fn.readStorage('assistant_auth')
+    commands: {
+        cycle_box: 'Cycle Ellie\'s Box'
+    },
+    url: _core.fn.readStorage('assistant_url'),
+    endpoint: _core.fn.readStorage('assistant_endpoint'),
+    auth: _core.fn.readStorage('assistant_auth')
 };
 _settings.wifi = {
     host_name: 'Litter-Box-Cycler',
@@ -53,16 +53,14 @@ _settings.wifi = {
     pw: _core.fn.readStorage('wifi_pw'),
     retry_ms: 3000,
     led: {
-      enable_toggle: true,
-      gpio: _settings.gpio.wifi_led.pin,
-      high_value: 0,
-      blink_interval_ms: 500
-    },
-    led_blink_interval_ms: 500,
-    connection_cb: undefined
+        enable_toggle: true,
+        gpio: _settings.gpio.wifi_led.pin,
+        high_value: 0,
+        blink_interval_ms: 500
+    }
 };
 _settings.sr04 = {
-  trigger_interval_ms: 500
+    trigger_interval_ms: 500
 };
 _settings.blynk = {
     url: _core.fn.readStorage('blynk_url'),
@@ -144,7 +142,7 @@ var _blynk = {
                 _blynk.fn.updateComponent('sr04_dist_cm', _sr04.dist_cm + 'cm');
             }, _settings.blynk.cycle_update_interval_ms);
 
-            _blynk.fn.onConnect(function() {
+            _blynk.fn.onConnect(function () {
                 if (typeof _settings.blynk.conection_cb == 'function') {
                     _settings.blynk.conection_cb();
                     _settings.blynk.conection_cb = undefined;
@@ -174,7 +172,7 @@ var _blynk = {
             console.log('Connecting Blynk...');
             _blynk.connection.connect();
         },
-        onConnect: function(cb) {
+        onConnect: function (cb) {
             _blynk.connection.on('connect', cb);
         },
         updateComponent: function (component, value) {
