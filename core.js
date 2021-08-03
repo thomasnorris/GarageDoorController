@@ -27,4 +27,4 @@ var _core = {
     }
 };
 
-exports.core = _core;
+exports = _core;
