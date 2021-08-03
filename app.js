@@ -8,7 +8,7 @@
 // require('Storage').write('blynk_auth', <<auth>>)
 
 // SETUP FUNCTIONS
-var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/core.js');
+var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/core.js').core;
 
 // MODULES
 _core.fn.init.start('Modules');

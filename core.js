@@ -1,12 +1,10 @@
-/**
- * Core Object
- */
+var _storage = require('Storage');
 var _core = {
     fn: {
         readStorage: function (key) {
             console.log('Reading ' + key + ' from Storage...');
 
-            var value = _modules.storage.read(key);
+            var value = _storage.read(key);
             if (value == undefined) {
                 console.log(key + ' in Storage is undefined!');
             }
@@ -27,4 +25,4 @@ var _core = {
     }
 };
 
-exports = _core;
+exports.core = _core;
