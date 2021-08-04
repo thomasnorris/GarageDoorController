@@ -8,14 +8,14 @@
 // require('Storage').write('blynk_auth', <<auth>>)
 
 // CORE
-var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/core.js').core;
+var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
 
 // MODULES
 _core.fn.init.start('Modules');
 var _modules = {
-    wifi: require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/wifi.js').wifi,
+    wifi: require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/wifi.js').wifi,
     sr04: require('HC-SR04'),
-    assistant: require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/assistant.js').assistant,
+    assistant: require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/google_assistant.js').assistant,
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
 _core.fn.init.end('Modules');

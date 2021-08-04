@@ -1,4 +1,4 @@
-var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/core.js').core;
+var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
 var _wifi = function (settings, connection_cb) {
     var wifi = require('Wifi');
     var self = this;
