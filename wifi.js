@@ -1,3 +1,4 @@
+var _core = require('https://raw.githubusercontent.com/thomasnorris/LitterRobotCycler/master--separate/core.js').core;
 var _wifi = function (settings, connection_cb) {
     var wifi = require('Wifi');
     var self = this;
@@ -11,9 +12,9 @@ var _wifi = function (settings, connection_cb) {
         // optional
         led: {
             enable_toggle: settings.led.enable_toggle || false,
-            gpio: settings.led.gpio ?? undefined,
-            high_value: settings.led.high_value ?? 1,
-            blink_interval_ms: settings.led.blink_interval_ms ?? 100
+            gpio: _core.fn.nullCoalesce(settings.led.gpio, undefined),
+            high_value: _core.fn.nullCoalesce(settings.led.gpio, 1),
+            blink_interval_ms: _core.fn.nullCoalesce(settings.led.blink_interval_ms, 100)
         }
     };
 

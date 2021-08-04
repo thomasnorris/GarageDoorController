@@ -21,6 +21,13 @@ var _core = {
         },
         msToS: function (ms) {
             return ms / 1000;
+        },
+        nullCoalesce: function(item, rhs) {
+            // equivalent to item ?? rhs
+            if (item == null || item == undefined) {
+                return rhs;
+            }
+            return item;
         }
     }
 };
