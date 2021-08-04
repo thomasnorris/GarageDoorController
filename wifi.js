@@ -13,7 +13,7 @@ var _wifi = function (settings, connection_cb) {
         led: {
             enable_toggle: settings.led.enable_toggle || false,
             gpio: _core.fn.nullCoalesce(settings.led.gpio, undefined),
-            high_value: _core.fn.nullCoalesce(settings.led.gpio, 1),
+            high_value: _core.fn.nullCoalesce(settings.led.high_value, 1),
             blink_interval_ms: _core.fn.nullCoalesce(settings.led.blink_interval_ms, 100)
         }
     };
