@@ -11,9 +11,9 @@ var _wifi = function (settings, connection_cb) {
         // optional
         led: {
             enable_toggle: settings.led.enable_toggle || false,
-            gpio: settings.led.gpio || undefined,
-            high_value: settings.led.high_value || 1,
-            blink_interval_ms: settings.led.blink_interval_ms || 100
+            gpio: settings.led.gpio ?? undefined,
+            high_value: settings.led.high_value ?? 1,
+            blink_interval_ms: settings.led.blink_interval_ms ?? 100
         }
     };
 

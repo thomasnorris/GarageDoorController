@@ -79,8 +79,6 @@ _settings.blynk = {
 _core.fn.init.end('Settings');
 
 // GLOBALS
-var _wifi = new _modules.wifi(_settings.wifi, _blynk.fn.connect);
-var _assistant = new _modules.assistant(_settings.assistant);
 var _sr04 = {
     connection: undefined,
     interval: 0,
@@ -218,6 +216,8 @@ var _gpio = {
         }
     }
 };
+var _wifi = new _modules.wifi(_settings.wifi, _blynk.fn.connect);
+var _assistant = new _modules.assistant(_settings.assistant);
 
 // MAIN
 function main() {
