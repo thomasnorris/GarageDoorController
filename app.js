@@ -7,109 +7,8 @@
 // require('Storage').write('blynk_url', <<url>>)
 // require('Storage').write('blynk_auth', <<auth>>)
 
-var _core = function (settings, afterInit) {
-    var self = this;
-    var modules = {
-        storage: require('Storage')
-    };
-
-    this.settings = settings;
-
-    this.fn = {
-        init: function () {
-            // no init
-
-            self.fn.logInfo('Core initialized.');
-
-            if (typeof afterInit == 'function') {
-                afterInit();
-            }
-        },
-        readStorage: function (key) {
-            console.log('Reading ' + key + ' from Storage...');
-
-            var value = modules.storage.read(key);
-            if (value == undefined) {
-                console.log(key + ' in Storage is undefined!');
-            }
-
-            return value;
-        },
-        msToS: function (ms) {
-            return ms / 1000;
-        },
-        nullCoalesce: function (lhs, rhs) {
-            // equivalent to lhs ?? rhs
-            if (lhs == false || lhs == undefined) {
-                return rhs;
-            }
-
-            return lhs;
-        },
-        logInfo: function (msg) {
-            msg = 'INFO: ' + msg;
-            console.log(msg);
-            return msg;
-        },
-        logWarn: function (msg) {
-            msg = 'WARNING: ' + msg;
-            console.log(msg);
-            return msg;
-        },
-        logError: function (msg) {
-            msg = 'ERROR: ' + msg;
-            console.log(msg);
-            return msg;
-        }
-    };
-
-    // set this.settings again using nullCoalesce function from above
-    this.settings = self.fn.nullCoalesce(settings, {});
-
-    // init
-    self.fn.init();
-};
-
-var _gpio = function (settings, afterInit) {
-    var self = this;
-    var modules = {
-        core: _core // require('github submodule')
-    };
-
-    this.settings = {
-        pins: modules.core.fn.nullCoalesce(settings.pins, []),
-        modes: modules.core.fn.nullCoalesce(settings.modes, [])
-    };
-
-    this.fn = {
-        init: function () {
-            var pins = self.settings.pins;
-            var modes = self.settings.modes;
-
-            for (var i = 0; i < pins.length; ++i) {
-                console.log('Setting ' + pins[i] + ' to ' + modes[i]);
-                pinMode(pins[i], modes[i]);
-            }
-
-            modules.core.fn.logInfo('GPIO initialized.');
-
-            if (typeof afterInit == 'function') {
-                afterInit();
-            }
-        },
-        toggleInterval: function (pin, interval) {
-            var state = 1;
-            return setInterval(function () {
-                digitalWrite(pin, state);
-                state = !state;
-            }, interval);
-        }
-    };
-
-    // init
-    self.fn.init();
-};
-
+var _gpio = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/gpio.js').gpio;
+var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
 _core = new _core();
 
 // SETTINGS
@@ -131,7 +30,7 @@ var _settings = {
         connection_cb: undefined
     },
     sr04: {
-        trigger_interval_ms: 500
+        trigger_interval_ms: 1000
     },
     blynk: {
         url: _core.fn.readStorage('blynk_url'),

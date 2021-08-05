@@ -1,0 +1,3 @@
+[submodule "NodeMCUEspruinoModules"]
+	path = NodeMCUEspruinoModules
+	url = git@github-personal:thomasnorris/NodeMCUEspruinoModules.git
