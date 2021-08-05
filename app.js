@@ -64,12 +64,13 @@ var _settings = {
     }
 };
 
+_gpio = new _gpio({
+    pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
+    modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
+});
+
 // MODULES
 var _modules = {
-    gpio: new _gpio({
-        pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
-        modes: ['output', 'output', 'output']
-    }),
     wifi: require('Wifi'),
     storage: require('Storage'),
     sr04: require('HC-SR04'),
@@ -99,7 +100,7 @@ var _wifi = {
         connect: function () {
             // reset LED blinking
             clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = _modules.gpio.fn.toggleInterval(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
+            _wifi.led_blink_interval = _gpio.fn.toggleInterval(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
 
             console.log('Connecting wifi...');
             _modules.wifi.connect(_settings.wifi.ssid, {
@@ -144,6 +145,7 @@ var _sr04 = {
             _sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, _sr04.fn.onEcho);
         },
         onEcho: function (dist) {
+
             _sr04.dist_cm = dist.toFixed(2);
         },
         monitor: {
