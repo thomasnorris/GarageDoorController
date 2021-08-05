@@ -7,59 +7,65 @@
 // require('Storage').write('blynk_url', <<url>>)
 // require('Storage').write('blynk_auth', <<auth>>)
 
-// SETUP FUNCTIONS
-var _core = {
-    fn: {
+var _core = function (settings) {
+    var self = this;
+    var modules = {
+        storage: require('Storage')
+    };
+
+    this.settings = settings;
+
+    this.fn = {
         readStorage: function (key) {
             console.log('Reading ' + key + ' from Storage...');
 
-            var value = _modules.storage.read(key);
+            var value = modules.storage.read(key);
             if (value == undefined) {
                 console.log(key + ' in Storage is undefined!');
             }
 
             return value;
         },
-        init: {
-            start: function (section) {
-                console.log('Initializing ' + section + '...');
-            },
-            end: function (section) {
-                console.log(section + ' Initialized!\n');
-            }
-        },
         msToS: function (ms) {
             return ms / 1000;
+        },
+        nullCoalesce: function (lhs, rhs) {
+            // equivalent to lhs ?? rhs
+            if (lhs == false || lhs == undefined) {
+                return rhs;
+            }
+
+            return lhs;
         }
-    }
-};
+    };
+
+    this.settings = this.fn.nullCoalesce(settings, {});
+}
 
 // MODULES
-_core.fn.init.start('Modules');
 var _modules = {
+    core: new _core(),
     wifi: require('Wifi'),
     storage: require('Storage'),
     sr04: require('HC-SR04'),
     http: require('http'),
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
-_core.fn.init.end('Modules');
 
 // SETTINGS
-_core.fn.init.start('Settings');
 var _settings = {
     host_name: 'Litter-Box-Cycler',
     assistant: {
         commands: {
             cycle_box: 'Cycle Ellie\'s Box'
         },
-        url: _core.fn.readStorage('assistant_url'),
-        endpoint: _core.fn.readStorage('assistant_endpoint'),
-        auth: _core.fn.readStorage('assistant_auth')
+        url: _modules.core.fn.readStorage('assistant_url'),
+        endpoint: _modules.core.fn.readStorage('assistant_endpoint'),
+        auth: _modules.core.fn.readStorage('assistant_auth')
     },
     wifi: {
-        ssid: _core.fn.readStorage('wifi_ssid'),
-        pw: _core.fn.readStorage('wifi_pw'),
+        ssid: _modules.core.fn.readStorage('wifi_ssid'),
+        pw: _modules.core.fn.readStorage('wifi_pw'),
         retry_ms: 3000,
         led_blink_interval_ms: 500,
         connection_cb: undefined
@@ -68,8 +74,8 @@ var _settings = {
         trigger_interval_ms: 500
     },
     blynk: {
-        url: _core.fn.readStorage('blynk_url'),
-        auth: _core.fn.readStorage('blynk_auth'),
+        url: _modules.core.fn.readStorage('blynk_url'),
+        auth: _modules.core.fn.readStorage('blynk_auth'),
         port: 8442,
         cycle_update_interval_ms: 1000,
         reboot_timeout_ms: 2000,
@@ -98,7 +104,6 @@ var _settings = {
         }
     }
 };
-_core.fn.init.end('Settings');
 
 // GLOBALS
 var _wifi = {
@@ -106,12 +111,11 @@ var _wifi = {
     led_blink_interval: 0,
     fn: {
         init: function (cb) {
-            _core.fn.init.start('Wifi');
             _modules.wifi.setHostname(_settings.host_name);
             _modules.wifi.disconnect();
 
             _wifi.fn.onDisconnected(function () {
-                console.log('Wifi disconnected, reconnecting in ' + _core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
+                console.log('Wifi disconnected, reconnecting in ' + _modules.core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
                 setTimeout(function () {
                     _wifi.fn.connect();
                 }, _settings.wifi.retry_ms);
@@ -119,8 +123,6 @@ var _wifi = {
 
             // called after wifi connects for the first time
             _settings.wifi.connection_cb = cb;
-
-            _core.fn.init.end('Wifi');
         },
         connect: function () {
             // reset LED blinking
@@ -166,11 +168,8 @@ var _sr04 = {
     dist_cm: undefined,
     fn: {
         init: function () {
-            _core.fn.init.start('SR04');
             var pins = _settings.gpio.sr04;
             _sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, _sr04.fn.onEcho);
-
-            _core.fn.init.end('SR04');
         },
         onEcho: function (dist) {
             _sr04.dist_cm = dist.toFixed(2);
@@ -200,7 +199,6 @@ var _blynk = {
     },
     fn: {
         init: function (cb) {
-            _core.fn.init.start('Blynk');
             _blynk.connection = new _modules.blynk.Blynk(_settings.blynk.auth, {
                 addr: _settings.blynk.url,
                 port: _settings.blynk.port,
@@ -221,7 +219,7 @@ var _blynk = {
                 _blynk.fn.updateComponent('sr04_dist_cm', _sr04.dist_cm + 'cm');
             }, _settings.blynk.cycle_update_interval_ms);
 
-            _blynk.fn.onConnect(function() {
+            _blynk.fn.onConnect(function () {
                 if (typeof _settings.blynk.conection_cb == 'function') {
                     _settings.blynk.conection_cb();
                     _settings.blynk.conection_cb = undefined;
@@ -244,14 +242,12 @@ var _blynk = {
 
             // called after blynk connects for the first time
             _settings.blynk.conection_cb = cb;
-
-            _core.fn.init.end('Blynk');
         },
         connect: function () {
             console.log('Connecting Blynk...');
             _blynk.connection.connect();
         },
-        onConnect: function(cb) {
+        onConnect: function (cb) {
             _blynk.connection.on('connect', cb);
         },
         updateComponent: function (component, value) {
@@ -275,7 +271,6 @@ var _blynk = {
 var _gpio = {
     fn: {
         init: function () {
-            _core.fn.init.start('GPIO');
             var pins = _settings.gpio;
 
             // wifi LED
@@ -285,8 +280,6 @@ var _gpio = {
             // SR04 pins
             pinMode(pins.sr04.trig.pin, pins.sr04.trig.mode);
             pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
-
-            _core.fn.init.end('GPIO');
         },
         toggle: function (pin, interval) {
             var state = 1;
