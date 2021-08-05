@@ -14,10 +14,9 @@ var _gpio = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspru
 var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
 _core = new _core({}, { storage: require('Storage') });
 
+var _sr04 = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/hcsr04.js').hcsr04;
+
 var _settings = {
-    sr04: {
-        trigger_interval_ms: 1000
-    },
     blynk: {
         url: _core.fn.readStorage('blynk_url'),
         auth: _core.fn.readStorage('blynk_auth'),
@@ -79,41 +78,25 @@ _settings.wifi = {
         }
     }
 };
-
-// MODULES
-var _modules = {
-    sr04: require('HC-SR04'),
-    blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
-};
-
-// GLOBALS
-var _sr04 = {
-    connection: undefined,
-    interval: 0,
-    dist_cm: undefined,
-    fn: {
-        init: function () {
-            var pins = _settings.gpio.sr04;
-            _sr04.connection = _modules.sr04.connect(pins.trig.pin, pins.echo.pin, _sr04.fn.onEcho);
-        },
-        onEcho: function (dist) {
-
-            _sr04.dist_cm = dist.toFixed(2);
-        },
-        monitor: {
-            start: function () {
-                console.log('Starting SR04 sensor monitoring.');
-                _sr04.interval = setInterval(function () {
-                    _sr04.connection.trigger();
-                }, _settings.sr04.trigger_interval_ms);
-            },
-            stop: function () {
-                console.log('Stopping SR04 sensor monitoring.');
-                clearInterval(_sr04.interval);
-            }
-        }
+// HC-SR04
+_settings.sr04 = {
+    trigger_interval_ms: 1000,
+    gpio: {
+        trigger_pin: _settings.gpio.sr04.trig.pin,
+        echo_pin: _settings.gpio.sr04.echo.pin
     }
 };
+_sr04 = new _sr04(_settings.sr04, { core: _core, hcsr04: require('HC-SR04') });
+
+// MODULES
+/*
+var _modules = {
+    blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
+};
+*/
+
+// GLOBALS
+/*
 var _blynk = {
     connection: undefined,
     components: {
@@ -194,18 +177,18 @@ var _blynk = {
         }
     }
 };
+*/
 
-_wifi = new _wifi(_settings.wifi, { core: _core, wifi: require('Wifi'), gpio: _gpio }, _blynk.fn.connect);
+_wifi = new _wifi(_settings.wifi, { core: _core, wifi: require('Wifi'), gpio: _gpio });
 
 // MAIN
 function main() {
     console.log('Ready!\n');
-    _sr04.fn.monitor.start();
+    _sr04.fn.startMonitoring();
 }
 
 // Init functions
-_sr04.fn.init();
-_blynk.fn.init(main);
+//_blynk.fn.init(main);
 
 // this will call _settings.wifi.connection_cb
 _wifi.fn.connect();
