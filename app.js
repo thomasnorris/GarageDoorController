@@ -22,8 +22,8 @@ var _settings = {
         url: _core.fn.readStorage('blynk_url'),
         auth: _core.fn.readStorage('blynk_auth'),
         port: 8442,
-        cycle_update_interval_ms: 2000,
-        reboot_timeout_ms: 2000,
+        cycle_update_interval_ms: 100,
+        reboot_timeout_ms: 3000,
         component_vpins: {
             ip_display: 0,
             sr04_dist_cm: 1,
@@ -72,7 +72,7 @@ _settings.wifi = {
     retry_ms: 3000,
     led: {
         enable_toggle: true,
-        blink_interval_ms: 500,
+        blink_interval_ms: 250,
         gpio: {
             pin: _settings.gpio.wifi_led.pin,
             connection_complete_write_value: 0
