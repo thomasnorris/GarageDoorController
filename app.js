@@ -7,9 +7,16 @@
 // require('Storage').write('blynk_url', <<url>>)
 // require('Storage').write('blynk_auth', <<auth>>)
 
+// built in modules
+var _http = require('http');
+var _storage = require('Storage');
+
+// custom modules
+var _assistant = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/google_assistant.js').assistant;
 var _gpio = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/gpio.js').gpio;
 var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
-_core = new _core();
+_core = new _core({}, { storage: _storage });
+
 
 // SETTINGS
 var _settings = {
@@ -36,7 +43,7 @@ var _settings = {
         url: _core.fn.readStorage('blynk_url'),
         auth: _core.fn.readStorage('blynk_auth'),
         port: 8442,
-        cycle_update_interval_ms: 1000,
+        cycle_update_interval_ms: 2000,
         reboot_timeout_ms: 2000,
         component_vpins: {
             ip_display: 0,
@@ -67,14 +74,14 @@ var _settings = {
 _gpio = new _gpio({
     pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
     modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
-});
+}, { core: _core });
+
+_assistant = new _assistant(_settings.assistant, { core: _core, http: _http });
 
 // MODULES
 var _modules = {
     wifi: require('Wifi'),
-    storage: require('Storage'),
     sr04: require('HC-SR04'),
-    http: require('http'),
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
 
@@ -239,38 +246,6 @@ var _blynk = {
                     cb_1();
                 }
             });
-        }
-    }
-};
-var _assistant = {
-    fn: {
-        send: function (command, cb, cb_on_error) {
-            var options = url.parse(_settings.assistant.url + _settings.assistant.endpoint + '/' + encodeURIComponent(command));
-            options.headers = {
-                'X-Auth': _settings.assistant.auth
-            };
-
-            var req = _modules.http.request(options, function (res) {
-                res.on('data', function (data) {
-                    console.log('Assistant Response: ' + data);
-                    if (typeof cb == 'function') {
-                        cb(data);
-                    }
-                });
-
-                res.on('close', function (data) {
-                    console.log('Connection closed.');
-                });
-            });
-
-            req.on('error', function (err) {
-                console.log('Assistant error: ' + err);
-                if (typeof cb == 'function' && cb_on_error) {
-                    cb(err);
-                }
-            });
-
-            req.end();
         }
     }
 };
