@@ -7,35 +7,14 @@
 // require('Storage').write('blynk_url', <<url>>)
 // require('Storage').write('blynk_auth', <<auth>>)
 
-// built in modules
-var _http = require('http');
-var _storage = require('Storage');
-
-// custom modules
+// Custom Modules
+var _wifi = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/wifi.js').wifi;
 var _assistant = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/google_assistant.js').assistant;
 var _gpio = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/gpio.js').gpio;
 var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
-_core = new _core({}, { storage: _storage });
+_core = new _core({}, { storage: require('Storage') });
 
-
-// SETTINGS
 var _settings = {
-    host_name: 'Litter-Box-Cycler',
-    assistant: {
-        commands: {
-            cycle_box: 'Cycle Ellie\'s Box'
-        },
-        url: _core.fn.readStorage('assistant_url'),
-        endpoint: _core.fn.readStorage('assistant_endpoint'),
-        auth: _core.fn.readStorage('assistant_auth')
-    },
-    wifi: {
-        ssid: _core.fn.readStorage('wifi_ssid'),
-        pw: _core.fn.readStorage('wifi_pw'),
-        retry_ms: 3000,
-        led_blink_interval_ms: 500,
-        connection_cb: undefined
-    },
     sr04: {
         trigger_interval_ms: 1000
     },
@@ -52,96 +31,62 @@ var _settings = {
             reboot_button: 3
         },
         conection_cb: undefined
+    }
+};
+// Google Assistant
+_settings.assistant = {
+    commands: {
+        cycle_box: 'Cycle Ellie\'s Box'
     },
-    gpio: {
-        wifi_led: {
+    url: _core.fn.readStorage('assistant_url'),
+    endpoint: _core.fn.readStorage('assistant_endpoint'),
+    auth: _core.fn.readStorage('assistant_auth')
+};
+_assistant = new _assistant(_settings.assistant, { core: _core, http: require('http') });
+// GPIO
+_settings.gpio = {
+    wifi_led: {
+        mode: 'output',
+        pin: NodeMCU.D0
+    },
+    sr04: {
+        trig: {
             mode: 'output',
-            pin: NodeMCU.D0
+            pin: NodeMCU.D1
         },
-        sr04: {
-            trig: {
-                mode: 'output',
-                pin: NodeMCU.D1
-            },
-            echo: {
-                mode: 'input',
-                pin: NodeMCU.D2
-            }
+        echo: {
+            mode: 'input',
+            pin: NodeMCU.D2
         }
     }
 };
-
 _gpio = new _gpio({
     pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
     modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
 }, { core: _core });
-
-_assistant = new _assistant(_settings.assistant, { core: _core, http: _http });
+// Wifi
+_settings.wifi = {
+    host_name: 'Litter-Box-Cycler',
+    ssid: _core.fn.readStorage('wifi_ssid'),
+    pw: _core.fn.readStorage('wifi_pw'),
+    retry_ms: 3000,
+    led: {
+        enable_toggle: true,
+        blink_interval_ms: 500,
+        gpio: {
+            pin: _settings.gpio.wifi_led.pin,
+            connection_complete_write_value: 0
+        }
+    }
+};
 
 // MODULES
 var _modules = {
-    wifi: require('Wifi'),
     sr04: require('HC-SR04'),
     blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
 
 // GLOBALS
-var _wifi = {
-    ip: undefined,
-    led_blink_interval: 0,
-    fn: {
-        init: function (cb) {
-            _modules.wifi.setHostname(_settings.host_name);
-            _modules.wifi.disconnect();
-
-            _wifi.fn.onDisconnected(function () {
-                console.log('Wifi disconnected, reconnecting in ' + _core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
-                setTimeout(function () {
-                    _wifi.fn.connect();
-                }, _settings.wifi.retry_ms);
-            });
-
-            // called after wifi connects for the first time
-            _settings.wifi.connection_cb = cb;
-        },
-        connect: function () {
-            // reset LED blinking
-            clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = _gpio.fn.toggleInterval(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
-
-            console.log('Connecting wifi...');
-            _modules.wifi.connect(_settings.wifi.ssid, {
-                password: _settings.wifi.pw
-            }, function (err) {
-                var ip = _modules.wifi.getIP().ip;
-                if (err) {
-                    console.log('Wifi connection error: ' + err);
-                    _modules.wifi.disconnect();
-                }
-                else if (!ip || ip == '0.0.0.0') {
-                    console.log('Invalid Wifi IP.');
-                    _modules.wifi.disconnect();
-                }
-                else {
-                    console.log("Wifi connected! Info: " + JSON.stringify(_modules.wifi.getIP()));
-                    clearInterval(_wifi.led_blink_interval);
-                    digitalWrite(_settings.gpio.wifi_led.pin, 0);
-                    _modules.wifi.stopAP();
-
-                    _wifi.ip = ip;
-
-                    if (typeof _settings.wifi.connection_cb == 'function') {
-                        _settings.wifi.connection_cb();
-                        _settings.wifi.connection_cb = undefined;
-                    }
-                }
-            });
-        },
-        onDisconnected: function (cb) {
-            _modules.wifi.on('disconnected', cb);
-        }
-    }
-};
 var _sr04 = {
     connection: undefined,
     interval: 0,
@@ -250,6 +195,8 @@ var _blynk = {
     }
 };
 
+_wifi = new _wifi(_settings.wifi, { core: _core, wifi: require('Wifi'), gpio: _gpio }, _blynk.fn.connect);
+
 // MAIN
 function main() {
     console.log('Ready!\n');
@@ -258,7 +205,6 @@ function main() {
 
 // Init functions
 _sr04.fn.init();
-_wifi.fn.init(_blynk.fn.connect);
 _blynk.fn.init(main);
 
 // this will call _settings.wifi.connection_cb
