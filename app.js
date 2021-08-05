@@ -7,7 +7,7 @@
 // require('Storage').write('blynk_url', <<url>>)
 // require('Storage').write('blynk_auth', <<auth>>)
 
-var _core = function (settings) {
+var _core = function (settings, afterInit) {
     var self = this;
     var modules = {
         storage: require('Storage')
@@ -16,6 +16,15 @@ var _core = function (settings) {
     this.settings = settings;
 
     this.fn = {
+        init: function () {
+            // no init
+
+            self.fn.logInfo('Core initialized.');
+
+            if (typeof afterInit == 'function') {
+                afterInit();
+            }
+        },
         readStorage: function (key) {
             console.log('Reading ' + key + ' from Storage...');
 
@@ -36,13 +45,32 @@ var _core = function (settings) {
             }
 
             return lhs;
+        },
+        logInfo: function (msg) {
+            msg = 'INFO: ' + msg;
+            console.log(msg);
+            return msg;
+        },
+        logWarn: function (msg) {
+            msg = 'WARNING: ' + msg;
+            console.log(msg);
+            return msg;
+        },
+        logError: function (msg) {
+            msg = 'ERROR: ' + msg;
+            console.log(msg);
+            return msg;
         }
     };
 
-    this.settings = this.fn.nullCoalesce(settings, {});
+    // set this.settings again using nullCoalesce function from above
+    this.settings = self.fn.nullCoalesce(settings, {});
+
+    // init
+    self.fn.init();
 };
 
-var _gpio = function (settings) {
+var _gpio = function (settings, afterInit) {
     var self = this;
     var modules = {
         core: _core // require('github submodule')
@@ -63,7 +91,11 @@ var _gpio = function (settings) {
                 pinMode(pins[i], modes[i]);
             }
 
-            self.fn.afterInit();
+            modules.core.fn.logInfo('GPIO initialized.');
+
+            if (typeof afterInit == 'function') {
+                afterInit();
+            }
         },
         toggleInterval: function (pin, interval) {
             var state = 1;
@@ -71,12 +103,11 @@ var _gpio = function (settings) {
                 digitalWrite(pin, state);
                 state = !state;
             }, interval);
-        },
-        afterInit: function () {
-            // overridden per device
-            console.log('GPIO afterInit() should be overridden!');
         }
-    }
+    };
+
+    // init
+    self.fn.init();
 };
 
 _core = new _core();
@@ -169,7 +200,7 @@ var _wifi = {
         connect: function () {
             // reset LED blinking
             clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = _modules.gpio.fn.toggle(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
+            _wifi.led_blink_interval = _modules.gpio.fn.toggleInterval(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
 
             console.log('Connecting wifi...');
             _modules.wifi.connect(_settings.wifi.ssid, {
