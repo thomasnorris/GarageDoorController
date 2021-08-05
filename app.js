@@ -40,17 +40,46 @@ var _core = function (settings) {
     };
 
     this.settings = this.fn.nullCoalesce(settings, {});
-}
-
-// MODULES
-var _modules = {
-    core: new _core(),
-    wifi: require('Wifi'),
-    storage: require('Storage'),
-    sr04: require('HC-SR04'),
-    http: require('http'),
-    blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
 };
+
+var _gpio = function (settings) {
+    var self = this;
+    var modules = {
+        core: _core // require('github submodule')
+    };
+
+    this.settings = {
+        pins: modules.core.fn.nullCoalesce(settings.pins, []),
+        modes: modules.core.fn.nullCoalesce(settings.modes, [])
+    };
+
+    this.fn = {
+        init: function () {
+            var pins = self.settings.pins;
+            var modes = self.settings.modes;
+
+            for (var i = 0; i < pins.length; ++i) {
+                console.log('Setting ' + pins[i] + ' to ' + modes[i]);
+                pinMode(pins[i], modes[i]);
+            }
+
+            self.fn.afterInit();
+        },
+        toggleInterval: function (pin, interval) {
+            var state = 1;
+            return setInterval(function () {
+                digitalWrite(pin, state);
+                state = !state;
+            }, interval);
+        },
+        afterInit: function () {
+            // overridden per device
+            console.log('GPIO afterInit() should be overridden!');
+        }
+    }
+};
+
+_core = new _core();
 
 // SETTINGS
 var _settings = {
@@ -59,13 +88,13 @@ var _settings = {
         commands: {
             cycle_box: 'Cycle Ellie\'s Box'
         },
-        url: _modules.core.fn.readStorage('assistant_url'),
-        endpoint: _modules.core.fn.readStorage('assistant_endpoint'),
-        auth: _modules.core.fn.readStorage('assistant_auth')
+        url: _core.fn.readStorage('assistant_url'),
+        endpoint: _core.fn.readStorage('assistant_endpoint'),
+        auth: _core.fn.readStorage('assistant_auth')
     },
     wifi: {
-        ssid: _modules.core.fn.readStorage('wifi_ssid'),
-        pw: _modules.core.fn.readStorage('wifi_pw'),
+        ssid: _core.fn.readStorage('wifi_ssid'),
+        pw: _core.fn.readStorage('wifi_pw'),
         retry_ms: 3000,
         led_blink_interval_ms: 500,
         connection_cb: undefined
@@ -74,8 +103,8 @@ var _settings = {
         trigger_interval_ms: 500
     },
     blynk: {
-        url: _modules.core.fn.readStorage('blynk_url'),
-        auth: _modules.core.fn.readStorage('blynk_auth'),
+        url: _core.fn.readStorage('blynk_url'),
+        auth: _core.fn.readStorage('blynk_auth'),
         port: 8442,
         cycle_update_interval_ms: 1000,
         reboot_timeout_ms: 2000,
@@ -105,6 +134,19 @@ var _settings = {
     }
 };
 
+// MODULES
+var _modules = {
+    gpio: new _gpio({
+        pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
+        modes: ['output', 'output', 'output']
+    }),
+    wifi: require('Wifi'),
+    storage: require('Storage'),
+    sr04: require('HC-SR04'),
+    http: require('http'),
+    blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
+};
+
 // GLOBALS
 var _wifi = {
     ip: undefined,
@@ -115,7 +157,7 @@ var _wifi = {
             _modules.wifi.disconnect();
 
             _wifi.fn.onDisconnected(function () {
-                console.log('Wifi disconnected, reconnecting in ' + _modules.core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
+                console.log('Wifi disconnected, reconnecting in ' + _core.fn.msToS(_settings.wifi.retry_ms) + ' seconds...');
                 setTimeout(function () {
                     _wifi.fn.connect();
                 }, _settings.wifi.retry_ms);
@@ -127,7 +169,7 @@ var _wifi = {
         connect: function () {
             // reset LED blinking
             clearInterval(_wifi.led_blink_interval);
-            _wifi.led_blink_interval = _gpio.fn.toggle(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
+            _wifi.led_blink_interval = _modules.gpio.fn.toggle(_settings.gpio.wifi_led.pin, _settings.wifi.led_blink_interval_ms);
 
             console.log('Connecting wifi...');
             _modules.wifi.connect(_settings.wifi.ssid, {
@@ -268,28 +310,6 @@ var _blynk = {
         }
     }
 };
-var _gpio = {
-    fn: {
-        init: function () {
-            var pins = _settings.gpio;
-
-            // wifi LED
-            pinMode(pins.wifi_led.pin, pins.wifi_led.mode);
-            digitalWrite(pins.wifi_led.pin, 1);
-
-            // SR04 pins
-            pinMode(pins.sr04.trig.pin, pins.sr04.trig.mode);
-            pinMode(pins.sr04.echo.pin, pins.sr04.echo.mode);
-        },
-        toggle: function (pin, interval) {
-            var state = 1;
-            return setInterval(function () {
-                digitalWrite(pin, state);
-                state = !state;
-            }, interval);
-        }
-    }
-};
 var _assistant = {
     fn: {
         send: function (command, cb, cb_on_error) {
@@ -330,7 +350,6 @@ function main() {
 }
 
 // Init functions
-_gpio.fn.init();
 _sr04.fn.init();
 _wifi.fn.init(_blynk.fn.connect);
 _blynk.fn.init(main);
