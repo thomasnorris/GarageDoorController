@@ -12,7 +12,7 @@ var _wifi = require('https://raw.githubusercontent.com/thomasnorris/EspruinoModu
 var _assistant = require('https://raw.githubusercontent.com/thomasnorris/EspruinoModules/master/google_assistant.js').assistant;
 var _gpio = require('https://raw.githubusercontent.com/thomasnorris/EspruinoModules/master/gpio.js').gpio;
 var _core = require('https://raw.githubusercontent.com/thomasnorris/EspruinoModules/master/core.js').core;
-var _sr04 = require('https://raw.githubusercontent.com/thomasnorris/EspruinoModules/master/hcsr04.js').hcsr04;
+var _hcsr04 = require('https://raw.githubusercontent.com/thomasnorris/EspruinoModules/master/hcsr04.js').hcsr04;
 _core = new _core();
 
 // Settings
@@ -74,7 +74,7 @@ _settings.sr04 = {
 // MAIN (must be hoisted)
 function main() {
     console.log('Ready!\n');
-    _sr04.fn.startMonitoring();
+    _hcsr04.fn.startMonitoring();
 }
 
 // Setup modules
@@ -83,7 +83,7 @@ _gpio = new _gpio({
     pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
     modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
 }, { core: _core });
-_sr04 = new _sr04(_settings.sr04, { core: _core }, function (self) {
+_hcsr04 = new _hcsr04(_settings.sr04, { core: _core }, function (self) {
     self.fn.onEcho = function (dist_cm) {
         self.modules.core.fn.logInfo('HC-SR04 distance: ' + dist_cm + ' cm');
     };
