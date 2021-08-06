@@ -12,26 +12,18 @@ var _wifi = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspru
 var _assistant = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/google_assistant.js').assistant;
 var _gpio = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/gpio.js').gpio;
 var _core = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/core.js').core;
-_core = new _core({}, { storage: require('Storage') });
+_core = new _core();
 
 var _sr04 = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/hcsr04.js').hcsr04;
+var _blynk = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/blynk.js').blynk;
 
-var _settings = {
-    blynk: {
-        url: _core.fn.readStorage('blynk_url'),
-        auth: _core.fn.readStorage('blynk_auth'),
-        port: 8442,
-        cycle_update_interval_ms: 100,
-        reboot_timeout_ms: 3000,
-        component_vpins: {
-            ip_display: 0,
-            sr04_dist_cm: 1,
-            cycle_box_button: 2,
-            reboot_button: 3
-        },
-        conection_cb: undefined
-    }
+var main = function () {
+    console.log('ORIGINAL MAIN');
+    // placeholder
 };
+
+// Settings
+_settings = {};
 // Google Assistant
 _settings.assistant = {
     commands: {
@@ -41,7 +33,6 @@ _settings.assistant = {
     endpoint: _core.fn.readStorage('assistant_endpoint'),
     auth: _core.fn.readStorage('assistant_auth')
 };
-_assistant = new _assistant(_settings.assistant, { core: _core, http: require('http') });
 // GPIO
 _settings.gpio = {
     wifi_led: {
@@ -59,10 +50,6 @@ _settings.gpio = {
         }
     }
 };
-_gpio = new _gpio({
-    pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
-    modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
-}, { core: _core });
 // Wifi
 _settings.wifi = {
     host_name: 'Litter-Box-Cycler',
@@ -80,20 +67,36 @@ _settings.wifi = {
 };
 // HC-SR04
 _settings.sr04 = {
-    trigger_interval_ms: 1000,
+    trigger_interval_ms: 500,
     gpio: {
         trigger_pin: _settings.gpio.sr04.trig.pin,
         echo_pin: _settings.gpio.sr04.echo.pin
     }
 };
-_sr04 = new _sr04(_settings.sr04, { core: _core, hcsr04: require('HC-SR04') });
-
-// MODULES
-/*
-var _modules = {
-    blynk: require('https://raw.githubusercontent.com/thomasnorris/blynk-library-js/8e7f4f87131bac09b454a46de235ba0517209373/blynk-espruino.js')
+// BLYNK
+_settings.blynk = {
+    url: _core.fn.readStorage('blynk_url'),
+    auth: _core.fn.readStorage('blynk_auth'),
+    port: 8442,
 };
-*/
+
+// MAIN (must be hoisted)
+function main() {
+    console.log('Ready!\n');
+    _sr04.fn.startMonitoring();
+}
+
+// Setup modules
+_assistant = new _assistant(_settings.assistant, { core: _core });
+_gpio = new _gpio({
+    pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
+    modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
+}, { core: _core });
+_sr04 = new _sr04(_settings.sr04, { core: _core });
+_blynk = new _blynk(_settings.blynk, { core: _core }, main, function () {
+    // additional setup here
+});
+_wifi = new _wifi(_settings.wifi, { core: _core, gpio: _gpio }, _blynk.fn.connect);
 
 // GLOBALS
 /*
@@ -179,16 +182,5 @@ var _blynk = {
 };
 */
 
-_wifi = new _wifi(_settings.wifi, { core: _core, wifi: require('Wifi'), gpio: _gpio });
-
-// MAIN
-function main() {
-    console.log('Ready!\n');
-    _sr04.fn.startMonitoring();
-}
-
-// Init functions
-//_blynk.fn.init(main);
-
-// this will call _settings.wifi.connection_cb
+// connect wifi, set up blynk, then run main
 _wifi.fn.connect();
