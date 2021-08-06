@@ -18,7 +18,6 @@ var _sr04 = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspru
 var _blynk = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/blynk.js').blynk;
 
 var main = function () {
-    console.log('ORIGINAL MAIN');
     // placeholder
 };
 
@@ -92,8 +91,12 @@ _gpio = new _gpio({
     pins: [_settings.gpio.wifi_led.pin, _settings.gpio.sr04.trig.pin, _settings.gpio.sr04.echo.pin],
     modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
 }, { core: _core });
-_sr04 = new _sr04(_settings.sr04, { core: _core });
-_blynk = new _blynk(_settings.blynk, { core: _core }, main, function () {
+_sr04 = new _sr04(_settings.sr04, { core: _core }, function (self) {
+    self.fn.onEcho = function (dist) {
+        console.log(dist);
+    };
+});
+_blynk = new _blynk(_settings.blynk, { core: _core }, main, function (self) {
     // additional setup here
 });
 _wifi = new _wifi(_settings.wifi, { core: _core, gpio: _gpio }, _blynk.fn.connect);
