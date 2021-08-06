@@ -17,10 +17,6 @@ _core = new _core();
 var _sr04 = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/hcsr04.js').hcsr04;
 var _blynk = require('https://raw.githubusercontent.com/thomasnorris/NodeMCUEspruinoModules/master/blynk.js').blynk;
 
-var main = function () {
-    // placeholder
-};
-
 // Settings
 _settings = {};
 // Google Assistant
@@ -92,8 +88,8 @@ _gpio = new _gpio({
     modes: [_settings.gpio.wifi_led.mode, _settings.gpio.sr04.trig.mode, _settings.gpio.sr04.echo.mode]
 }, { core: _core });
 _sr04 = new _sr04(_settings.sr04, { core: _core }, function (self) {
-    self.fn.onEcho = function (dist) {
-        console.log(dist);
+    self.fn.onEcho = function (dist_cm) {
+        //self.modules.core.fn.logInfo('HC-SR04 distance: ' + dist_cm + ' cm');
     };
 });
 _blynk = new _blynk(_settings.blynk, { core: _core }, main, function (self) {
